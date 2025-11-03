@@ -118,7 +118,7 @@ Generate XML coverage report for CI:
 python -m pytest --cov=. --cov-report=xml
 ```
 
-Check coverage meets minimum threshold (94%):
+Check coverage meets minimum threshold (90%):
 ```bash
 coverage report --fail-under=90
 ```
