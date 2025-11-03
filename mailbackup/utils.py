@@ -375,23 +375,27 @@ def compute_remote_sha256(settings: Settings, remote_path: str) -> str:
     This is used as a fallback when rclone hashsum isn't available.
     """
     logger = get_logger(__name__)
-    if remote_path.startswith(settings.remote):
-        remote_path = remote_path[len(settings.remote):]
-    if remote_path.startswith("/"):
-        remote_path = remote_path[1:]
-    proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
-    proc.check_returncode()
-    out = proc.stdout
-    out_bytes = None
-    if isinstance(out, str):
-        try:
-            out_bytes = out.encode("utf-8")
-        except UnicodeEncodeError as e:
-            logger.debug(f"failed to encode output to utf-8: {e}")
-    if out_bytes is None:
-        # Fallback handling
-        out_bytes = (out or b"")
-    return sha256_bytes(out_bytes)
+    try:
+        if remote_path.startswith(settings.remote):
+            remote_path = remote_path[len(settings.remote):]
+        if remote_path.startswith("/"):
+            remote_path = remote_path[1:]
+        proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
+        proc.check_returncode()
+        out = proc.stdout
+        out_bytes = None
+        if isinstance(out, str):
+            try:
+                out_bytes = out.encode("utf-8")
+            except UnicodeEncodeError as e:
+                logger.debug(f"failed to encode output to utf-8: {e}")
+        if out_bytes is None:
+            # Fallback handling
+            out_bytes = (out or b"")
+        return sha256_bytes(out_bytes)
+    except Exception as e:
+        logger.debug(f"Failed to compute remote SHA256 for {remote_path}: {e}")
+        return ""
 
 
 def silent_info(logger: logging.Logger, msg: str, silent: bool = False):

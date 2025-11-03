@@ -140,26 +140,27 @@ class TestExtractorTargeted:
         """Test count_mail_files with existing directory."""
         maildir = tmp_path / "maildir"
         maildir.mkdir()
-        subdir = maildir / "subdir"
-        subdir.mkdir()
-        subdir = maildir / "subdir" / "cur"
-        subdir.mkdir()
-        (subdir / "email1.eml").write_text("test")
-        subdir = maildir / "subdir" / "tmp"
-        subdir.mkdir()
-        (subdir / "email-1.eml").write_text("test")
-        subdir = maildir / "subdir" / "new"
-        subdir.mkdir()
-        (subdir / "email2.eml").write_text("test")
-        subdir = maildir / "cur"
-        subdir.mkdir()
-        (subdir / "email3.eml").write_text("test")
-        subdir = maildir / "tmp"
-        subdir.mkdir()
-        (subdir / "email-2.eml").write_text("test")
-        subdir = maildir / "new"
-        subdir.mkdir()
-        (subdir / "email4.eml").write_text("test")
+        # Create account1 with nested folder structure
+        account1 = maildir / "account1"
+        account1.mkdir()
+        folder1 = account1 / "INBOX"
+        folder1.mkdir()
+        (folder1 / "cur").mkdir()
+        (folder1 / "cur" / "email1.eml").write_text("test")
+        (folder1 / "tmp").mkdir()
+        (folder1 / "tmp" / "email-1.eml").write_text("test")  # Should be ignored
+        (folder1 / "new").mkdir()
+        (folder1 / "new" / "email2.eml").write_text("test")
+        
+        # Create account2 with direct cur/new folders
+        account2 = maildir / "account2"
+        account2.mkdir()
+        (account2 / "cur").mkdir()
+        (account2 / "cur" / "email3.eml").write_text("test")
+        (account2 / "tmp").mkdir()
+        (account2 / "tmp" / "email-2.eml").write_text("test")  # Should be ignored
+        (account2 / "new").mkdir()
+        (account2 / "new" / "email4.eml").write_text("test")
 
         count = count_mail_files(maildir)
         assert count == 4
@@ -173,26 +174,27 @@ class TestExtractorTargeted:
         """Test iter_mail_files yields all files."""
         maildir = tmp_path / "maildir"
         maildir.mkdir()
-        subdir = maildir / "subdir"
-        subdir.mkdir()
-        subdir = maildir / "subdir" / "cur"
-        subdir.mkdir()
-        (subdir / "email1.eml").write_text("test")
-        subdir = maildir / "subdir" / "tmp"
-        subdir.mkdir()
-        (subdir / "wrong").write_text("test")
-        subdir = maildir / "subdir" / "new"
-        subdir.mkdir()
-        (subdir / "email2.eml").write_text("test")
-        subdir = maildir / "cur"
-        subdir.mkdir()
-        (subdir / "email3.eml").write_text("test")
-        subdir = maildir / "tmp"
-        subdir.mkdir()
-        (subdir / "wrong").write_text("test")
-        subdir = maildir / "new"
-        subdir.mkdir()
-        (subdir / "email4.eml").write_text("test")
+        # Create account1 with nested folder structure
+        account1 = maildir / "account1"
+        account1.mkdir()
+        folder1 = account1 / "INBOX"
+        folder1.mkdir()
+        (folder1 / "cur").mkdir()
+        (folder1 / "cur" / "email1.eml").write_text("test")
+        (folder1 / "tmp").mkdir()
+        (folder1 / "tmp" / "wrong").write_text("test")  # Should be ignored
+        (folder1 / "new").mkdir()
+        (folder1 / "new" / "email2.eml").write_text("test")
+        
+        # Create account2 with direct cur/new folders
+        account2 = maildir / "account2"
+        account2.mkdir()
+        (account2 / "cur").mkdir()
+        (account2 / "cur" / "email3.eml").write_text("test")
+        (account2 / "tmp").mkdir()
+        (account2 / "tmp" / "wrong").write_text("test")  # Should be ignored
+        (account2 / "new").mkdir()
+        (account2 / "new" / "email4.eml").write_text("test")
 
         files = list(iter_mail_files(maildir))
         assert len(files) == 4
