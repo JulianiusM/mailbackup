@@ -380,6 +380,7 @@ def compute_remote_sha256(settings: Settings, remote_path: str) -> str:
     if remote_path.startswith("/"):
         remote_path = remote_path[1:]
     proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
+    proc.check_returncode()
     out = proc.stdout
     out_bytes = None
     if isinstance(out, str):
@@ -452,9 +453,9 @@ def remote_hash(settings: Settings, file_pattern: str = '*', remote_path: str = 
         files = json.loads(res2.stdout or "[]")
         if remote_path.startswith(settings.remote):
             remote_path = remote_path[len(settings.remote):]
-        if remote_path[-1:] == "/":
-            remote_path = remote_path[:-1]
-        relpaths = [f"{remote_path}/{entry['Path']}" for entry in files if "Path" in entry]
+        if remote_path != "" and remote_path[-1:] != "/":
+            remote_path = f"{remote_path}/"
+        relpaths = [f"{remote_path}{entry['Path']}" for entry in files if "Path" in entry]
         silent_info(_logger,
                     f"Found {len(relpaths)} remote files — computing hashes with {settings.max_hash_threads} threads...",
                     silent_logging

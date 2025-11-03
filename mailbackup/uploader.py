@@ -103,8 +103,8 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
 
         safe_write_json(docset_dir / "info.json", info)
 
-        remote_path = f"/{year}/{folder_name}"
-        remote_base = f"{settings.remote}{remote_path}"
+        remote_path = f"{year}/{folder_name}"
+        remote_base = f"{settings.remote}/{remote_path}"
 
         # upload email.eml (critical) with verification loop
         max_attempts = 3

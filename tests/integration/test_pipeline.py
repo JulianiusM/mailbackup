@@ -47,11 +47,15 @@ class TestUploaderIntegration:
         mocker.patch("mailbackup.utils.rclone_deletefile", return_value=Mock(returncode=0))
 
         # Mock remote hash verification
-        def mock_remote_hash(settings, path):
+        def mock_remote_hash(settings, file_pattern, remote_path):
             # Return matching hash
             from mailbackup.utils import sha256
             expected_hash = sha256(email_path)
-            return {path: expected_hash}
+            if remote_path.startswith(test_settings.remote):
+                remote_path = remote_path[len(test_settings.remote):]
+            if remote_path[-1:] == "/":
+                remote_path = remote_path[:-1]
+            return {f"{remote_path}/email.eml": expected_hash}
 
         mocker.patch("mailbackup.uploader.remote_hash", side_effect=mock_remote_hash)
 
