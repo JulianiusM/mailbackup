@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Final integration tests to push coverage to 95%.
+Final integration tests to push coverage to 94%.
 Focuses on uploader and manifest modules.
 """
 

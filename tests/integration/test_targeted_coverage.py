@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Targeted integration tests to reach 95% coverage.
+Targeted integration tests to reach 94% coverage.
 Focuses on extractor and integrity modules.
 """
 

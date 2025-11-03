@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive integration tests to achieve 95%+ code coverage.
+Comprehensive integration tests to achieve 94%+ code coverage.
 Focuses on real integration scenarios without mocking internal code bugs.
 """
 
