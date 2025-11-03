@@ -13,14 +13,13 @@ import sys
 import time
 from pathlib import Path
 
-from .config import load_settings
-from .utils import ensure_dirs, install_signal_handlers, StatusThread
-from . import db
-from .manifest import ManifestManager
-from .orchestrator import run_pipeline
-
+from mailbackup import db
+from mailbackup.config import load_settings
 # Use the centralized logging factory
-from .logger import setup_logger, get_logger
+from mailbackup.logger import setup_logger, get_logger
+from mailbackup.manifest import ManifestManager
+from mailbackup.orchestrator import run_pipeline
+from mailbackup.utils import ensure_dirs, install_signal_handlers, StatusThread
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,18 +84,18 @@ def main():
     # Declarative action mapping
     # ------------------------------------------------------------------
     plans = {
-        "fetch":   dict(fetch=True,  process=False, stages=[]),
-        "process": dict(fetch=False, process=True,  stages=[]),
-        "backup":  dict(fetch=False, process=False, stages=["backup"]),
+        "fetch": dict(fetch=True, process=False, stages=[]),
+        "process": dict(fetch=False, process=True, stages=[]),
+        "backup": dict(fetch=False, process=False, stages=["backup"]),
         "archive": dict(fetch=False, process=False, stages=["archive"]),
-        "check":   dict(fetch=False, process=False, stages=["check"]),
-        "run":     dict(fetch=False, process=True,  stages=["backup", "archive", "check"]),
-        "full":    dict(fetch=True,  process=True,  stages=["backup", "archive", "check"]),
+        "check": dict(fetch=False, process=False, stages=["check"]),
+        "run": dict(fetch=False, process=True, stages=["backup", "archive", "check"]),
+        "full": dict(fetch=True, process=True, stages=["backup", "archive", "check"]),
         # Legacy aliases
-        "extract": dict(fetch=False, process=True,  stages=[]),
-        "upload":  dict(fetch=False, process=False, stages=["backup"]),
-        "rotate":  dict(fetch=False, process=False, stages=["archive"]),
-        "verify":  dict(fetch=False, process=False, stages=["check"]),
+        "extract": dict(fetch=False, process=True, stages=[]),
+        "upload": dict(fetch=False, process=False, stages=["backup"]),
+        "rotate": dict(fetch=False, process=False, stages=["archive"]),
+        "verify": dict(fetch=False, process=False, stages=["check"]),
     }
 
     try:

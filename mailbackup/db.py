@@ -21,8 +21,8 @@ import threading
 from pathlib import Path
 from typing import List, Optional
 
-from .logger import get_logger
-from .utils import parse_year_and_ts
+from mailbackup.logger import get_logger
+from mailbackup.utils import parse_year_and_ts
 
 _logger = get_logger(__name__)
 

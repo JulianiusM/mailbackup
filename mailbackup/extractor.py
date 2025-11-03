@@ -19,10 +19,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.header import decode_header, make_header
 from pathlib import Path
 
-from . import db
-from .config import Settings
-from .logger import get_logger
-from .utils import sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
+from mailbackup import db
+from mailbackup.config import Settings
+from mailbackup.logger import get_logger
+from mailbackup.utils import sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, \
+    parse_year_and_ts
 
 _logger = get_logger(__name__)
 

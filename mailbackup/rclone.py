@@ -5,8 +5,6 @@ import logging
 from pathlib import Path
 from typing import Union
 
-from .utils import run_cmd
-
 logger = logging.getLogger(__name__)
 
 # Default arguments for all rclone calls
@@ -15,6 +13,8 @@ RCLONE_BASE = ["rclone", "--log-level", "INFO"]
 
 def _run_rclone(*args: Union[str, Path], check: bool = True):
     """Low-level helper that executes rclone with consistent defaults."""
+    from mailbackup.utils import run_cmd
+
     cmd = RCLONE_BASE + [str(a) for a in args]
     return run_cmd(*cmd, check=check)
 

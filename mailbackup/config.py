@@ -28,8 +28,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .rclone import set_rclone_defaults
-
 
 @dataclass
 class Settings:
@@ -217,6 +215,8 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
     rclone_transfers = _coerce_int(pick("rclone_transfers", "rclone.transfers", default=8), 8)
     rclone_multi_thread_streams = _coerce_int(
         pick("rclone_multi_thread_streams", "rclone.multi_thread_streams", default=4), 4)
+
+    from mailbackup.rclone import set_rclone_defaults
 
     set_rclone_defaults(rclone_log_level, rclone_transfers, rclone_multi_thread_streams)
 

@@ -18,13 +18,13 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from .rclone import rclone_deletefile
-from .utils import remote_hash
-from . import db
-from .config import Settings
-from .logger import get_logger
-from .manifest import ManifestManager
-from .utils import (
+from mailbackup import db
+from mailbackup.config import Settings
+from mailbackup.logger import get_logger
+from mailbackup.manifest import ManifestManager
+from mailbackup.rclone import rclone_deletefile
+from mailbackup.utils import remote_hash
+from mailbackup.utils import (
     sanitize,
     sha256,
     parse_year_and_ts,

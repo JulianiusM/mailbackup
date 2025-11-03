@@ -13,15 +13,14 @@ import subprocess
 import time
 from datetime import datetime
 
-from .config import Settings
-from .extractor import run_extractor
-from .integrity import integrity_check
-# Use factory logger
-from .logger import get_logger
-from .manifest import ManifestManager
-from .rotation import rotate_archives
-from .uploader import incremental_upload
-from .utils import run_streaming
+from mailbackup.config import Settings
+from mailbackup.extractor import run_extractor
+from mailbackup.integrity import integrity_check
+from mailbackup.logger import get_logger
+from mailbackup.manifest import ManifestManager
+from mailbackup.rotation import rotate_archives
+from mailbackup.uploader import incremental_upload
+from mailbackup.utils import run_streaming
 
 
 def _parse_command(cmd_str: str) -> list[str]:

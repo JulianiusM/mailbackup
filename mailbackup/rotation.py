@@ -19,12 +19,12 @@ import datetime
 import json
 import shutil
 
-from .rclone import rclone_copy, rclone_lsf
-from . import db
-from .config import Settings
-from .logger import get_logger
-from .manifest import ManifestManager
-from .utils import run_cmd, sha256, safe_write_json, atomic_upload_file
+from mailbackup import db
+from mailbackup.config import Settings
+from mailbackup.logger import get_logger
+from mailbackup.manifest import ManifestManager
+from mailbackup.rclone import rclone_copy, rclone_lsf
+from mailbackup.utils import run_cmd, sha256, safe_write_json, atomic_upload_file
 
 _logger = get_logger(__name__)
 

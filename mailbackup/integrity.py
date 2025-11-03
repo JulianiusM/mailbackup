@@ -18,13 +18,15 @@ import logging
 import shutil
 from pathlib import Path
 
-from .rclone import rclone_copyto
-from .utils import atomic_upload_file, safe_write_json, remote_hash
-from . import db
-from .config import Settings
-from .logger import get_logger
-from .manifest import ManifestManager, load_manifest_csv
-from .utils import (
+from mailbackup import db
+from mailbackup.config import Settings
+from mailbackup.logger import get_logger
+from mailbackup.manifest import ManifestManager, load_manifest_csv
+from mailbackup.rclone import rclone_copyto
+from mailbackup.utils import (
+    atomic_upload_file,
+    safe_write_json,
+    remote_hash,
     parse_year_and_ts,
     sanitize,
     load_attachments,
