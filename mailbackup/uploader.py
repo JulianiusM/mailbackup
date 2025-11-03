@@ -34,8 +34,6 @@ from mailbackup.utils import (
     atomic_upload_file,
 )
 
-_logger = get_logger(__name__)
-
 
 def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dict) -> None:
     """
@@ -105,7 +103,8 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
 
         safe_write_json(docset_dir / "info.json", info)
 
-        remote_base = f"{settings.remote}/{year}/{folder_name}"
+        remote_path = f"/{year}/{folder_name}"
+        remote_base = f"{settings.remote}{remote_path}"
 
         # upload email.eml (critical) with verification loop
         max_attempts = 3
@@ -120,42 +119,54 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
                     continue
                 # verification: stream remote file and compare SHA256 to local computed hash
                 # this is a defensive step against partial/garbled uploads.
-                remote_map = remote_hash(settings, remote_email)
-                if remote_map is None:
-                    logger.warning(f"No remote hashsum found for email {hash_}")
-                elif remote_map[remote_email] != hash_email:
-                    logger.warning(
-                        f"Verification mismatch for {hash_} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
-                else:
-                    email_uploaded = True
-                    break
+                remote_map = remote_hash(settings, remote_path=remote_base)
+                logger.debug(f"Remote map: {remote_map}")
+                try:
+                    if remote_map is None:
+                        logger.warning(f"No remote hashsum found for email {hash_}")
+                    elif remote_map.get(f"{remote_path}/email.eml") != hash_email:
+                        logger.warning(
+                            f"Verification mismatch for {hash_} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
+                    else:
+                        email_uploaded = True
+                        break
+                except KeyError as e:
+                    logger.warning(f"Verfication failed for {hash_} with error: {e}")
 
                 if not email_uploaded:
                     # try to remove the bad remote file
                     try:
                         rclone_deletefile(remote_email, check=False)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error deleting bad {remote_email}: {e}")
             else:
                 # no local email file: treat as uploaded (nothing to do)
                 email_uploaded = True
                 break
 
         if not email_uploaded:
+            logger.debug(f"Email not uploaded: {remote_email}")
             with stats_lock:
                 stats["skipped"] = stats.get("skipped", 0) + 1
             shutil.rmtree(docset_dir, ignore_errors=True)
             return False
 
         # upload attachments and info.json atomically (best-effort)
-        for fpath in sorted(docset_dir.iterdir()):
-            if not fpath.is_file():
-                continue
-            if fpath.name == "email.eml":
-                continue
-            atomic_upload_file(fpath, f"{remote_base}/{fpath.name}")
+        try:
+            logger.debug(f"Uploading attachments for {remote_email}")
+            for fpath in sorted(docset_dir.iterdir()):
+                if not fpath.is_file() or fpath.name == "email.eml":
+                    continue
+                logger.debug(f"Uploading {fpath}")
+                ok = atomic_upload_file(fpath, f"{remote_base}/{fpath.name}")
+                if not ok:
+                    logger.warning(f"Failed to upload {fpath.name} for {hash_}")
+        except Exception as e:
+            logger.exception(f"Exception during attachment upload for {hash_}: {e}")
+            return False
 
         # success: db + manifest + stats
+        logger.debug(f"Marking {hash_} as synced...")
         db.mark_synced(settings.db_path, hash_, hash_email, f"{year}/{folder_name}/email.eml")
         try:
             manifest.queue_entry(f"{year}/{folder_name}/email.eml", hash_email)
@@ -175,10 +186,16 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(_process_row, row) for row in rows]
             for fut in as_completed(futures):
-                completed += 1
-                if completed % 25 == 0 or completed == total_to_upload:
-                    remaining = total_to_upload - completed
-                    logger.info(f"[Progress] Uploaded {completed}/{total_to_upload} emails ({remaining} remaining)")
+                try:
+                    res = fut.result()
+                    if res:
+                        completed += 1
+                        if completed % 25 == 0 or completed == total_to_upload:
+                            remaining = total_to_upload - completed
+                            logger.info(
+                                f"[Progress] Uploaded {completed}/{total_to_upload} emails ({remaining} remaining)")
+                except Exception as e:
+                    logger.error(f"Failed to upload {fut}: {e}")
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()

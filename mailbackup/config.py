@@ -155,6 +155,8 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
                 source_path = p
                 break
 
+    print("Config file: ", source_path)
+
     if source_path is None:
         # Fall back to built-in defaults
         # But make it explicit for the user

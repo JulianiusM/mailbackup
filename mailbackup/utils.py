@@ -41,8 +41,6 @@ if TYPE_CHECKING:
 from mailbackup.logger import get_logger
 from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
-_logger = get_logger(__name__)
-
 
 class StatusThread:
     def __init__(self, interval: int, counters: Dict[str, int]):
@@ -61,7 +59,7 @@ class StatusThread:
                 # logger.status is registered at runtime by setup_logger; call via getattr
                 fn = getattr(self.logger, "status", None)
                 if callable(fn):
-                    fn("[STATUS] " + self.status_summary())
+                    fn(self.status_summary())
                 else:
                     self.logger.info("[STATUS] " + self.status_summary())
 
@@ -111,7 +109,7 @@ def run_cmd(*args: str, check: bool = True, fatal: bool = False) -> Union[
     try:
         cp: subprocess.CompletedProcess = subprocess.run(args, check=check, capture_output=True, text=True)
         out = cp.stdout or ""
-        local_logger.debug(f"Command succeeded: {' '.join(args)} -> {out.strip()[:400]}")
+        local_logger.debug(f"Command succeeded: {' '.join(args)} -> {out.strip()[:400]} | {cp.returncode}")
         return cp
     except subprocess.CalledProcessError as e:
         local_logger.error(f"Command failed: {' '.join(args)} -> {e.stderr.strip()}")
@@ -155,6 +153,7 @@ def write_json_atomic(path: Path, data: Any) -> None:
     """
     Atomically write JSON to `path`. Logs the write at debug level.
     """
+    _logger = get_logger(__name__)
     tmp = path.with_suffix(path.suffix + ".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -169,9 +168,11 @@ def safe_write_json(path: Path, data: Any) -> None:
     Write JSON atomically where possible; on failure fall back to a plain write.
     Logs at debug level for the chosen path.
     """
+    _logger = get_logger(__name__)
     try:
         write_json_atomic(path, data)
     except Exception:
+        _logger.debug(f"Failed to write JSON atomically to {path}, retry with best effort fallback")
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -186,6 +187,7 @@ def atomic_write_text(path: Path, data: Union[str, Iterable[str]]) -> None:
     `data` may be a single string or an iterable of string lines.
     Uses the same tmp-suffix strategy as write_json_atomic (append ".tmp" to suffix).
     """
+    _logger = get_logger(__name__)
     tmp = path.with_suffix(path.suffix + ".tmp")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
@@ -349,6 +351,7 @@ def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True) -> boo
 
 # helper: atomic upload of a single local file to a remote final path
 def atomic_upload_file(local_path: Path, remote_final: str) -> bool:
+    _logger = get_logger(__name__)
     run_id = uuid.uuid4().hex
     remote_tmp = f"{remote_final}.tmp.{run_id}"
     res = rclone_copyto(local_path, remote_tmp, check=False)
@@ -371,13 +374,23 @@ def compute_remote_sha256(settings: Settings, remote_path: str) -> str:
     Returns hex digest string on success or empty string on failure.
     This is used as a fallback when rclone hashsum isn't available.
     """
-    try:
-        proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
-        out = proc.stdout
-        out_bytes = out.encode("utf-8") if isinstance(out, str) else (out or b"")
-        return sha256_bytes(out_bytes)
-    except Exception:
-        return ""
+    logger = get_logger(__name__)
+    if remote_path.startswith(settings.remote):
+        remote_path = remote_path[len(settings.remote):]
+    if remote_path.startswith("/"):
+        remote_path = remote_path[1:]
+    proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
+    out = proc.stdout
+    out_bytes = None
+    if isinstance(out, str):
+        try:
+            out_bytes = out.encode("utf-8")
+        except UnicodeEncodeError as e:
+            logger.debug(f"failed to encode output to utf-8: {e}")
+    if out_bytes is None:
+        # Fallback handling
+        out_bytes = (out or b"")
+    return sha256_bytes(out_bytes)
 
 
 def silent_info(logger: logging.Logger, msg: str, silent: bool = False):
@@ -394,13 +407,18 @@ def silent_warn(logger: logging.Logger, msg: str, silent: bool = False):
         logger.warning(msg)
 
 
-def remote_hash(settings: Settings, file_pattern: str, silent_logging: bool = True) -> dict[str, str] | None:
+def remote_hash(settings: Settings, file_pattern: str = '*', remote_path: str = None, silent_logging: bool = True) -> \
+        dict[str, str] | None:
+    _logger = get_logger(__name__)
     remote_map: Dict[str, str] = {}
+
+    if remote_path is None:
+        remote_path = settings.remote
 
     # Step 1: try rclone hashsum
     res = rclone_hashsum(
         "SHA256",
-        settings.remote,
+        remote_path,
         "--include",
         file_pattern,
         "--recursive",
@@ -422,7 +440,7 @@ def remote_hash(settings: Settings, file_pattern: str, silent_logging: bool = Tr
     # Step 2: fallback — list all remote files and compute hashes locally
     if not remote_map:
         res2 = rclone_lsjson(
-            settings.remote,
+            remote_path,
             "--include",
             file_pattern,
             "--recursive",
@@ -432,7 +450,11 @@ def remote_hash(settings: Settings, file_pattern: str, silent_logging: bool = Tr
             _logger.error("Failed to list remote contents.")
             return None
         files = json.loads(res2.stdout or "[]")
-        relpaths = [entry["Path"] for entry in files if "Path" in entry]
+        if remote_path.startswith(settings.remote):
+            remote_path = remote_path[len(settings.remote):]
+        if remote_path[-1:] == "/":
+            remote_path = remote_path[:-1]
+        relpaths = [f"{remote_path}/{entry['Path']}" for entry in files if "Path" in entry]
         silent_info(_logger,
                     f"Found {len(relpaths)} remote files — computing hashes with {settings.max_hash_threads} threads...",
                     silent_logging

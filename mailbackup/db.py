@@ -24,8 +24,6 @@ from typing import List, Optional
 from mailbackup.logger import get_logger
 from mailbackup.utils import parse_year_and_ts
 
-_logger = get_logger(__name__)
-
 _thread_local = threading.local()
 
 
@@ -82,6 +80,7 @@ def ensure_schema(db_path: Path) -> None:
     Creates the 'processed' table if missing and adds missing columns used by later
     versions. This function is safe to call multiple times and is idempotent.
     """
+    _logger = get_logger(__name__)
     conn = get_connection(db_path)
     cur = conn.cursor()
     cur.execute(
@@ -262,6 +261,7 @@ def mark_processed(
     Insert or update a processed message record.
     Uses an upsert keyed by the message fingerprint and commits.
     """
+    _logger = get_logger(__name__)
     if not fingerprint:
         _logger.warning("mark_processed called without fingerprint; skipping")
         return

@@ -1,11 +1,8 @@
 # mailbackup/rclone.py
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Union
-
-logger = logging.getLogger(__name__)
 
 # Default arguments for all rclone calls
 RCLONE_BASE = ["rclone", "--log-level", "INFO"]

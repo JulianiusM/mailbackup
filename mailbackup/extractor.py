@@ -18,14 +18,14 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.header import decode_header, make_header
 from pathlib import Path
+from typing import Iterator
 
 from mailbackup import db
 from mailbackup.config import Settings
 from mailbackup.logger import get_logger
-from mailbackup.utils import sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, \
-    parse_year_and_ts
-
-_logger = get_logger(__name__)
+from mailbackup.utils import (
+    sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
+)
 
 
 # ----------------------------------------------------------------------
@@ -35,6 +35,7 @@ _logger = get_logger(__name__)
 
 def decode_mime_header(raw_header) -> str:
     """Decode MIME-encoded email headers safely and return plain string."""
+    logger = get_logger(__name__)
     if not raw_header:
         return ""
     try:
@@ -42,15 +43,14 @@ def decode_mime_header(raw_header) -> str:
         if not isinstance(decoded, str):
             decoded = str(decoded)
         return decoded
-    except Exception:
-        try:
-            return str(raw_header)
-        except Exception:
-            return ""
+    except Exception as e:
+        logger.debug(f"Failed to decode MIME-encoded header: {e}")
+        return str(raw_header)
 
 
 def decode_text_part(part) -> str:
     """Decode a text/plain or text/html part into UTF-8."""
+    logger = get_logger(__name__)
     try:
         payload = part.get_payload(decode=True)
         if payload is None:
@@ -60,7 +60,8 @@ def decode_text_part(part) -> str:
             return payload.decode(charset, errors="replace")
         except LookupError:
             return payload.decode("utf-8", errors="replace")
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Failed to decode MIME-encoded header: {e}")
         return ""
 
 
@@ -159,12 +160,13 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool
 
     for part in msg.walk():
         ctype = part.get_content_type()
-        disp = part.get("Content-Disposition", "")
+        disp = part.get("Content-Disposition")
+        disp = disp if isinstance(disp, str) else str(disp or "")
 
         if part.get_content_maintype() == "multipart":
             continue
 
-        if "attachment" in disp:
+        if "attachment" in disp.lower():
             p = save_attachment(part, outdir)
             if p:
                 saved_paths.append(p)
@@ -181,19 +183,42 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool
     return True
 
 
-def iter_mail_files(maildir: Path):
-    """Yield email files under maildir."""
-    for p in maildir.rglob("*"):
-        if p.is_file():
-            yield p
+def iter_mail_files(root_maildir: Path) -> Iterator[Path]:
+    """
+    Yield all actual email message files under a multi-account mbsync Maildir.
+
+    Structure assumed:
+        root_maildir/
+            account1/
+                Folder1/{cur,new,tmp}/
+                Folder2/{cur,new,tmp}/
+            account2/
+                INBOX/{cur,new,tmp}/
+                ...
+    Only files inside 'cur' and 'new' are yielded.
+    """
+    if not root_maildir.exists():
+        return
+
+    for account_dir in root_maildir.iterdir():
+        if not account_dir.is_dir() or account_dir.name.startswith("."):
+            continue
+
+        # Walk recursively through all folders within each account
+        for folder in account_dir.rglob("*"):
+            if not folder.is_dir():
+                continue
+            if folder.name not in ("cur", "new"):
+                continue
+
+            for msg in folder.iterdir():
+                if msg.is_file() and not msg.name.startswith("."):
+                    yield msg
 
 
-def count_mail_files(maildir: Path) -> int:
-    """Defensive count of files in maildir."""
-    if not maildir.exists():
-        return 0
-
-    return sum(1 for p in maildir.rglob("*") if p.is_file())
+def count_mail_files(root_maildir: Path) -> int:
+    """Count all email message files under a multi-account mbsync Maildir."""
+    return sum(1 for _ in iter_mail_files(root_maildir))
 
 
 def run_extractor(settings: Settings, stats: dict):
@@ -240,7 +265,7 @@ def run_extractor(settings: Settings, stats: dict):
                     with processed_lock:
                         processed_count += 1
                     stats["extracted"] = stats.get("extracted", 0) + 1
-                    if processed_count % 100 == 0 or processed_count == total_files:
+                    if processed_count % 250 == 0 or processed_count == total_files:
                         remaining = total_files - processed_count
                         logger.info(
                             f"[Progress] Processed {processed_count}/{total_files} emails ({remaining} remaining)")

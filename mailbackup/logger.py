@@ -11,7 +11,8 @@ from typing import Optional
 _LOGGER: Optional[logging.Logger] = None
 STATUS_LEVEL = 25
 
-def setup_logger(log_path: Path, level=logging.INFO) -> logging.Logger:
+
+def setup_logger(log_path: Path, level=logging.DEBUG) -> logging.Logger:
     """Initialize global logger once."""
     global _LOGGER
     if _LOGGER is not None:

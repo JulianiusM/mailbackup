@@ -34,8 +34,6 @@ from mailbackup.utils import (
     sha256,
 )
 
-_logger = get_logger(__name__)
-
 
 def rebuild_docset(settings: Settings, year: int, folder: str, row) -> Path:
     """
@@ -184,7 +182,7 @@ def integrity_check(settings: Settings, manifest: ManifestManager, stats: dict) 
     else:
         # Step 2: try rclone hashsum
         logger.warning("Remote manifest missing. Trying rclone hashsum SHA256 first...")
-        remote_map = remote_hash(settings, "**/email.eml", False)
+        remote_map = remote_hash(settings, "**/email.eml", silent_logging=False)
 
     if remote_map is None:
         logger.error("No remote hashsum found, skipping integrity check.")

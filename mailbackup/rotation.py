@@ -26,8 +26,6 @@ from mailbackup.manifest import ManifestManager
 from mailbackup.rclone import rclone_copy, rclone_lsf
 from mailbackup.utils import run_cmd, sha256, safe_write_json, atomic_upload_file
 
-_logger = get_logger(__name__)
-
 
 def rotate_archives(settings: Settings, manifest: ManifestManager, stats: dict) -> None:
     """

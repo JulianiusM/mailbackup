@@ -15,7 +15,6 @@ from pathlib import Path
 
 from mailbackup import db
 from mailbackup.config import load_settings
-# Use the centralized logging factory
 from mailbackup.logger import setup_logger, get_logger
 from mailbackup.manifest import ManifestManager
 from mailbackup.orchestrator import run_pipeline
