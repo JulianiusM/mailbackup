@@ -140,6 +140,8 @@ class TestExtractorTargeted:
         """Test count_mail_files with existing directory."""
         maildir = tmp_path / "maildir"
         maildir.mkdir()
+        subdir = maildir / "subdir"
+        subdir.mkdir()
         subdir = maildir / "subdir" / "cur"
         subdir.mkdir()
         (subdir / "email1.eml").write_text("test")
@@ -171,6 +173,8 @@ class TestExtractorTargeted:
         """Test iter_mail_files yields all files."""
         maildir = tmp_path / "maildir"
         maildir.mkdir()
+        subdir = maildir / "subdir"
+        subdir.mkdir()
         subdir = maildir / "subdir" / "cur"
         subdir.mkdir()
         (subdir / "email1.eml").write_text("test")
