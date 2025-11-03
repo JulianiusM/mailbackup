@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Unit tests for __main__.py module.
+Unit tests for __main__.py module - main() function only.
+Parser tests are in tests/integration/test_cli.py.
 """
 
 import pytest
@@ -8,94 +9,7 @@ import sys
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 from argparse import Namespace
-from mailbackup.__main__ import build_parser, main
-
-
-class TestBuildParser:
-    """Tests for build_parser function."""
-    
-    def test_build_parser_creates_parser(self):
-        """Test that build_parser creates an ArgumentParser."""
-        parser = build_parser()
-        assert parser is not None
-    
-    def test_parser_accepts_fetch_action(self):
-        """Test that parser accepts 'fetch' action."""
-        parser = build_parser()
-        args = parser.parse_args(["fetch"])
-        assert args.action == "fetch"
-    
-    def test_parser_accepts_process_action(self):
-        """Test that parser accepts 'process' action."""
-        parser = build_parser()
-        args = parser.parse_args(["process"])
-        assert args.action == "process"
-    
-    def test_parser_accepts_backup_action(self):
-        """Test that parser accepts 'backup' action."""
-        parser = build_parser()
-        args = parser.parse_args(["backup"])
-        assert args.action == "backup"
-    
-    def test_parser_accepts_archive_action(self):
-        """Test that parser accepts 'archive' action."""
-        parser = build_parser()
-        args = parser.parse_args(["archive"])
-        assert args.action == "archive"
-    
-    def test_parser_accepts_check_action(self):
-        """Test that parser accepts 'check' action."""
-        parser = build_parser()
-        args = parser.parse_args(["check"])
-        assert args.action == "check"
-    
-    def test_parser_accepts_run_action(self):
-        """Test that parser accepts 'run' action."""
-        parser = build_parser()
-        args = parser.parse_args(["run"])
-        assert args.action == "run"
-    
-    def test_parser_accepts_full_action(self):
-        """Test that parser accepts 'full' action."""
-        parser = build_parser()
-        args = parser.parse_args(["full"])
-        assert args.action == "full"
-    
-    def test_parser_accepts_legacy_extract(self):
-        """Test that parser accepts legacy 'extract' action."""
-        parser = build_parser()
-        args = parser.parse_args(["extract"])
-        assert args.action == "extract"
-    
-    def test_parser_accepts_legacy_upload(self):
-        """Test that parser accepts legacy 'upload' action."""
-        parser = build_parser()
-        args = parser.parse_args(["upload"])
-        assert args.action == "upload"
-    
-    def test_parser_accepts_legacy_rotate(self):
-        """Test that parser accepts legacy 'rotate' action."""
-        parser = build_parser()
-        args = parser.parse_args(["rotate"])
-        assert args.action == "rotate"
-    
-    def test_parser_accepts_legacy_verify(self):
-        """Test that parser accepts legacy 'verify' action."""
-        parser = build_parser()
-        args = parser.parse_args(["verify"])
-        assert args.action == "verify"
-    
-    def test_parser_accepts_config_option(self):
-        """Test that parser accepts --config option."""
-        parser = build_parser()
-        args = parser.parse_args(["fetch", "--config", "/path/to/config.toml"])
-        assert args.config == Path("/path/to/config.toml")
-    
-    def test_parser_config_default_none(self):
-        """Test that config defaults to None."""
-        parser = build_parser()
-        args = parser.parse_args(["fetch"])
-        assert args.config is None
+from mailbackup.__main__ import main
 
 
 class TestMain:

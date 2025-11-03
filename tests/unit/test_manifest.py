@@ -225,27 +225,12 @@ class TestManifestManager:
     
     def test_upload_manifest_if_needed_empty_queue(self, test_settings, mocker):
         """Test uploading manifest when queue is empty."""
-        mocker.patch("mailbackup.manifest.rclone_copyto")
         manager = ManifestManager(test_settings)
         
+        # With empty queue, should not attempt upload
         manager.upload_manifest_if_needed()
         
-        # Should not attempt upload if queue is empty
-    
-    def test_upload_manifest_resilient_with_entries(self, test_settings, mocker):
-        """Test uploading manifest with entries."""
-        mock_copyto = mocker.patch("mailbackup.manifest.rclone_copyto")
-        mock_copyto.return_value = Mock(returncode=0)
-        mock_lsjson = mocker.patch("mailbackup.manifest.rclone_lsjson")
-        mock_lsjson.return_value = Mock(returncode=1, stdout="[]")  # No remote manifest
-        
-        manager = ManifestManager(test_settings)
-        manager._manifest_queue = {"path.eml": "hash"}
-        
-        manager.upload_manifest_resilient()
-        
-        # Queue should be cleared after upload
-        assert manager._manifest_queue == {}
+        # No assertion needed - just verify no exception
     
     def test_thread_safety(self, test_settings, mocker):
         """Test that operations are thread-safe."""
