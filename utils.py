@@ -31,13 +31,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import unicodedata
 
-from .config import Settings
+if TYPE_CHECKING:
+    from .config import Settings
+
 from .logger import get_logger
-from .rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
 _logger = get_logger(__name__)
 
@@ -347,6 +348,8 @@ def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True) -> boo
 
 # helper: atomic upload of a single local file to a remote final path
 def atomic_upload_file(local_path: Path, remote_final: str) -> bool:
+    from .rclone import rclone_copyto, rclone_deletefile, rclone_moveto
+    
     run_id = uuid.uuid4().hex
     remote_tmp = f"{remote_final}.tmp.{run_id}"
     res = rclone_copyto(local_path, remote_tmp, check=False)
@@ -369,6 +372,8 @@ def compute_remote_sha256(settings: Settings, remote_path: str) -> str:
     Returns hex digest string on success or empty string on failure.
     This is used as a fallback when rclone hashsum isn't available.
     """
+    from .rclone import rclone_cat
+    
     try:
         proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
         out = proc.stdout
@@ -393,6 +398,8 @@ def silent_warn(logger: logging.Logger, msg: str, silent: bool = False):
 
 
 def remote_hash(settings: Settings, file_pattern: str, silent_logging: bool = True) -> dict[str, str] | None:
+    from .rclone import rclone_hashsum, rclone_lsjson
+    
     remote_map: Dict[str, str] = {}
 
     # Step 1: try rclone hashsum

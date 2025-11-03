@@ -1,0 +1,8 @@
+# Development and testing dependencies for mailbackup
+pytest>=7.0
+pytest-cov
+pytest-mock
+requests-mock
+responses
+pytest-asyncio
+freezegun
