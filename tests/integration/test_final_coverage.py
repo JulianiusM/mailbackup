@@ -142,6 +142,7 @@ class TestManifestFinal:
     
     def test_manifest_max_retries(self, test_settings, mocker):
         """Test manifest gives up after max retries."""
+        # Mock rclone commands to avoid FileNotFoundError
         mocker.patch("mailbackup.manifest.rclone_lsjson", return_value=Mock(
             returncode=0,
             stdout=json.dumps([{"Name": "manifest.csv"}])
@@ -154,6 +155,11 @@ class TestManifestFinal:
             return Mock(returncode=1)
         
         mocker.patch("mailbackup.manifest.rclone_copyto", side_effect=mock_copyto)
+        mocker.patch("mailbackup.manifest.rclone_moveto", return_value=Mock(returncode=1))
+        mocker.patch("mailbackup.manifest.rclone_deletefile", return_value=Mock(returncode=0))
+        
+        # Mock load_manifest_csv to avoid rclone command execution
+        mocker.patch("mailbackup.manifest.load_manifest_csv", return_value={})
         
         test_settings.max_manifest_conflict_retries = 2
         
