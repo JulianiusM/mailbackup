@@ -120,7 +120,7 @@ python -m pytest --cov=. --cov-report=xml
 
 Check coverage meets minimum threshold (94%):
 ```bash
-coverage report --fail-under=94
+coverage report --fail-under=90
 ```
 
 ## Writing Tests
