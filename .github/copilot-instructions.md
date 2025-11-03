@@ -63,7 +63,7 @@ Maildir → Extractor → SQLite DB + Attachments Dir → Uploader → Remote St
 - Use type hints (`from __future__ import annotations`)
 - Follow PEP 8 naming conventions
 - Include module-level docstrings describing purpose
-- Use absolute imports from package root (e.g., `from .config import Settings`)
+- Use relative imports within the package (e.g., `from .config import Settings`)
 - Prefer descriptive variable names over abbreviations
 
 ### Error Handling
