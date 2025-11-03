@@ -19,7 +19,7 @@ import datetime
 import json
 import shutil
 
-from rclone import rclone_copy, rclone_lsf
+from .rclone import rclone_copy, rclone_lsf
 from . import db
 from .config import Settings
 from .logger import get_logger

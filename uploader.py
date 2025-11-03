@@ -18,8 +18,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from rclone import rclone_deletefile
-from utils import remote_hash
+from .rclone import rclone_deletefile
+from .utils import remote_hash
 from . import db
 from .config import Settings
 from .logger import get_logger

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from rclone import set_rclone_defaults
+from .rclone import set_rclone_defaults
 
 
 @dataclass

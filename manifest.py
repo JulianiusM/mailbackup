@@ -19,8 +19,8 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
-from config import Settings
-from rclone import rclone_copyto, rclone_lsjson, rclone_deletefile, rclone_moveto
+from .config import Settings
+from .rclone import rclone_copyto, rclone_lsjson, rclone_deletefile, rclone_moveto
 from .logger import get_logger
 from .utils import atomic_write_text, sha256_bytes, write_json_atomic
 
