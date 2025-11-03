@@ -126,7 +126,7 @@ def test_settings(tmp_path):
 @pytest.fixture
 def mock_rclone(mocker):
     """Mock rclone command calls."""
-    mock_run = mocker.patch("utils.run_cmd")
+    mock_run = mocker.patch("mailbackup.utils.run_cmd")
     mock_run.return_value = mocker.Mock(
         returncode=0,
         stdout="",

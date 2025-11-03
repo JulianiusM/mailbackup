@@ -80,22 +80,25 @@ class TestCLIExecution:
     
     def test_cli_help(self):
         """Test that --help works."""
+        # Get the package directory dynamically
+        package_dir = Path(__file__).parent.parent.parent
         result = subprocess.run(
-            [sys.executable, "-m", "__main__", "--help"],
+            [sys.executable, "-m", "mailbackup", "--help"],
             capture_output=True,
             text=True,
-            cwd="/home/runner/work/mailbackup/mailbackup"
+            cwd=str(package_dir)
         )
         assert result.returncode == 0
         assert "mailbackup" in result.stdout.lower() or "usage" in result.stdout.lower()
     
     def test_cli_invalid_action(self):
         """Test that invalid action fails."""
+        package_dir = Path(__file__).parent.parent.parent
         result = subprocess.run(
-            [sys.executable, "-m", "__main__", "invalid_action"],
+            [sys.executable, "-m", "mailbackup", "invalid_action"],
             capture_output=True,
             text=True,
-            cwd="/home/runner/work/mailbackup/mailbackup"
+            cwd=str(package_dir)
         )
         # Should fail with non-zero exit code
         assert result.returncode != 0
@@ -127,16 +130,17 @@ status_interval = 1
         email_file.write_bytes(sample_email)
         
         # Mock rclone commands
-        mocker.patch("utils.run_cmd", return_value=mocker.Mock(
+        mocker.patch("mailbackup.utils.run_cmd", return_value=mocker.Mock(
             returncode=0, stdout="", stderr=""
         ))
         
         # Run the process action
+        package_dir = Path(__file__).parent.parent.parent
         result = subprocess.run(
-            [sys.executable, "-m", "__main__", "process", "--config", str(config_file)],
+            [sys.executable, "-m", "mailbackup", "process", "--config", str(config_file)],
             capture_output=True,
             text=True,
-            cwd="/home/runner/work/mailbackup/mailbackup"
+            cwd=str(package_dir)
         )
         
         # Should succeed
@@ -147,14 +151,14 @@ status_interval = 1
     
     def test_backup_workflow(self, tmp_path, test_settings, test_db, mocker):
         """Test backup workflow with mocked rclone."""
-        from manifest import ManifestManager
+        from mailbackup.manifest import ManifestManager
+        from mailbackup.db import mark_processed
         
         # Mock rclone operations
-        mock_run_cmd = mocker.patch("utils.run_cmd")
+        mock_run_cmd = mocker.patch("mailbackup.utils.run_cmd")
         mock_run_cmd.return_value = mocker.Mock(returncode=0, stdout="", stderr="")
         
         # Add a processed but unsynced email to DB
-        from db import mark_processed
         mark_processed(
             test_db,
             fingerprint="testhash123",
@@ -180,7 +184,6 @@ class TestPipelineIntegration:
     
     def test_pipeline_plan_fetch(self):
         """Test that fetch plan is correctly defined."""
-        from __main__ import main
         # Just verify the plans dictionary structure
         # Full integration would require mocking subprocess
         pass
