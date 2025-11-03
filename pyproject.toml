@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mailbackup"
+version = "0.1.0"
+description = "Incremental maildir-format email backup tool to cloud storage via rclone."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+license-files = ["LICEN[CS]E*"]
+authors = [{ name = "Julian Mal", email = "julian@jundm100-development.de" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# No runtime pip dependencies are required by default; rclone is an external tool.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "pytest-mock",
+    "requests-mock",
+    "responses",
+    "pytest-asyncio",
+    "freezegun",
+]
+
+[project.urls]
+Homepage = "https://https://github.com/JulianiusM/mailbackup"
+Source = "https://https://github.com/JulianiusM/mailbackup.git"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+

@@ -91,6 +91,9 @@ fabric.properties
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
 
+# Github copilot
+.idea/copilot*.xml
+
 ### Git template
 # Created by git for backups. To disable backups in Git:
 # $ git config --global mergetool.keepBackup false

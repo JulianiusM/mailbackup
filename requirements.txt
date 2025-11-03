@@ -1,0 +1,8 @@
+# Runtime dependencies for mailbackup
+# mailbackup primarily uses the Python standard library. The external tool `rclone`
+# must be installed on the system separately (https://rclone.org/).
+# Add any runtime pip packages here if/when the project gains non-stdlib deps.
+
+# Example (uncomment to use):
+# requests>=2.0
+
