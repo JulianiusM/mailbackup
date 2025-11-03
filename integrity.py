@@ -120,7 +120,7 @@ def repair_remote(settings: Settings, reason: str, row, logger: logging.Logger, 
     logger.warning(f"Repairing ({reason}): {remotepath or 'unknown'} → {new_remote_path}")
 
     # rebuild
-    ds = rebuild_docset(settings, year, folder, row, logger)
+    ds = rebuild_docset(settings, year, folder, row)
 
     remote_base = f"{settings.remote}/{year}/{folder}"
     success = True
