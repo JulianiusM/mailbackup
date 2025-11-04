@@ -303,7 +303,7 @@ class TestExtractorIntegration:
     def test_run_extractor_nonexistent_maildir(self, test_settings):
         """Test run_extractor with nonexistent maildir."""
         test_settings.maildir = Path("/nonexistent")
-        stats = {"extracted": 0}
+        stats = create_stats()
 
         run_extractor(test_settings, stats)
 
@@ -343,7 +343,7 @@ class TestIntegrityIntegration:
         test_settings.verify_integrity = False
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 
@@ -358,7 +358,7 @@ class TestIntegrityIntegration:
         mocker.patch("mailbackup.integrity.db.fetch_synced", return_value=[])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 

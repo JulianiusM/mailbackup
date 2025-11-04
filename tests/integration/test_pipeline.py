@@ -64,7 +64,7 @@ class TestUploaderIntegration:
         mocker.patch("mailbackup.uploader.remote_hash", side_effect=mock_remote_hash)
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         incremental_upload(test_settings, manifest, stats)
 
@@ -120,7 +120,7 @@ class TestUploaderIntegration:
         mocker.patch("mailbackup.uploader.remote_hash", side_effect=mock_remote_hash)
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         incremental_upload(test_settings, manifest, stats)
 
@@ -177,7 +177,7 @@ class TestIntegrityIntegration:
 
         manifest = Mock(spec=ManifestManager)
         manifest.manifest_path = test_settings.manifest_path
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 
@@ -194,7 +194,7 @@ class TestIntegrityIntegration:
         mocker.patch("mailbackup.integrity.db.fetch_synced", return_value=[])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 

@@ -13,7 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from mailbackup.statistics import StatusThread
+from mailbackup.statistics import StatusThread, create_stats, StatKey
 from mailbackup.utils import (
     run_streaming,
     atomic_upload_file,
@@ -313,7 +313,10 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_starts_and_stops(self):
         """Test StatusThread lifecycle."""
-        counters = {"uploaded": 5, "verified": 10}
+        
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
+        counters.increment(StatKey.VERIFIED, 10)
         thread = StatusThread(interval=1, counters=counters)
 
         # Should not be running yet
@@ -357,7 +360,10 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_with_custom_logger(self, mocker):
         """Test StatusThread uses status method when available."""
-        counters = {"uploaded": 5, "verified": 10}
+        
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
+        counters.increment(StatKey.VERIFIED, 10)
 
         # Mock logger with status method
         mock_logger = Mock()
@@ -376,7 +382,8 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_fallback_to_info(self, mocker):
         """Test StatusThread falls back to info when status not available."""
-        counters = {"uploaded": 5}
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
 
         # Mock logger without status method
         mock_logger = Mock()

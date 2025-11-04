@@ -66,7 +66,7 @@ class TestIntegrityCheckIntegration:
 
         manifest = Mock(spec=ManifestManager)
         manifest.manifest_path = test_settings.manifest_path
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -104,7 +104,7 @@ class TestIntegrityCheckIntegration:
         mocker.patch("mailbackup.integrity.db.fetch_synced", return_value=[db_row])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -118,7 +118,7 @@ class TestIntegrityCheckIntegration:
         test_settings.verify_integrity = False
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -171,7 +171,7 @@ class TestIntegrityCheckIntegration:
         test_settings.repair_on_failure = False
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -210,7 +210,7 @@ class TestIntegrityCheckIntegration:
         test_settings.repair_on_failure = False
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -260,7 +260,7 @@ class TestIntegrityCheckIntegration:
         test_settings.repair_on_failure = True
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -311,7 +311,7 @@ class TestIntegrityCheckIntegration:
         test_settings.repair_on_failure = True
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -331,7 +331,7 @@ class TestIntegrityCheckIntegration:
         mocker.patch("mailbackup.integrity.db.fetch_synced", return_value=[])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -366,7 +366,7 @@ class TestIntegrityCheckIntegration:
         mocker.patch("mailbackup.integrity.db.fetch_synced", return_value=[db_row])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"verified": 0, "repaired": 0}
+        stats = create_stats()
 
         # Execute
         integrity_check(test_settings, manifest, stats)
@@ -410,7 +410,7 @@ class TestRepairRemoteIntegration:
         mock_update_path = mocker.patch("mailbackup.integrity.db.update_remote_path")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"repaired": 0}
+        stats = create_stats()
         logger = Mock()
 
         # Execute
@@ -454,7 +454,7 @@ class TestRepairRemoteIntegration:
         mocker.patch("mailbackup.integrity.db.update_remote_path")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"repaired": 0}
+        stats = create_stats()
         logger = Mock()
 
         # Execute
@@ -493,7 +493,7 @@ class TestRepairRemoteIntegration:
         mock_update_path = mocker.patch("mailbackup.integrity.db.update_remote_path")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"repaired": 0}
+        stats = create_stats()
         logger = Mock()
 
         # Execute
@@ -529,7 +529,7 @@ class TestRepairRemoteIntegration:
         mocker.patch("mailbackup.integrity.db.update_remote_path")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"repaired": 0}
+        stats = create_stats()
         logger = Mock()
 
         # Execute - should not crash
@@ -567,7 +567,7 @@ class TestRepairRemoteIntegration:
         mocker.patch("mailbackup.integrity.db.update_remote_path")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"repaired": 0}
+        stats = create_stats()
         logger = Mock()
 
         # Execute - should not crash

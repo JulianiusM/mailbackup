@@ -44,7 +44,7 @@ class TestExtractorTargeted:
         db_path = tmp_path / "test.db"
         db.ensure_schema(db_path)
 
-        result = process_email_file(email_file, attachments_root, db_path)
+        result = process_email_file(email_file, attachments_root, db_path, create_stats())
 
         assert result is True
         assert attachments_root.exists()
@@ -56,7 +56,7 @@ class TestExtractorTargeted:
         db_path = tmp_path / "test.db"
         db.ensure_schema(db_path)
 
-        result = process_email_file(email_file, attachments_root, db_path)
+        result = process_email_file(email_file, attachments_root, db_path, create_stats())
         assert result is False
 
     def test_process_email_corrupted(self, tmp_path):
@@ -68,7 +68,7 @@ class TestExtractorTargeted:
         db_path = tmp_path / "test.db"
         db.ensure_schema(db_path)
 
-        result = process_email_file(email_file, attachments_root, db_path)
+        result = process_email_file(email_file, attachments_root, db_path, create_stats())
         # May or may not succeed, just ensure no crash
         assert result in (True, False)
 
@@ -214,7 +214,7 @@ class TestExtractorTargeted:
             modified_email = sample_email.replace(b"Test Email", f"Test Email {i}".encode())
             email_file.write_bytes(modified_email)
 
-        stats = {"extracted": 0}
+        stats = create_stats()
         run_extractor(test_settings, stats)
 
         assert stats[StatKey.EXTRACTED] == 3
@@ -282,7 +282,7 @@ class TestIntegrityTargeted:
 
         manifest = Mock(spec=ManifestManager)
         manifest.upload_manifest_if_needed = Mock()
-        stats = {"verified": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 
@@ -313,7 +313,7 @@ class TestIntegrityTargeted:
 
         manifest = Mock(spec=ManifestManager)
         manifest.upload_manifest_if_needed = Mock()
-        stats = {"verified": 0}
+        stats = create_stats()
 
         integrity_check(test_settings, manifest, stats)
 
