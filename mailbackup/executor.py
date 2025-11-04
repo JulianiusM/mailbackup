@@ -12,7 +12,6 @@ graceful shutdown, exception propagation, and state recovery capabilities.
 from __future__ import annotations
 
 import threading
-import signal
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 from typing import Callable, Iterable, TypeVar, Generic, Any, Optional
 from dataclasses import dataclass
@@ -114,6 +113,11 @@ class GlobalInterruptManager:
     def is_interrupted(self) -> bool:
         """Check if global interrupt has been signaled."""
         return self._global_flag.is_set()
+    
+    def get_executor_count(self) -> int:
+        """Get the number of registered executors."""
+        with self._executors_lock:
+            return len(self._executors)
     
     def reset(self):
         """Reset the interrupt state (for testing or recovery)."""

@@ -29,10 +29,10 @@ class TestInterruptHandlingIntegration:
         
         with create_managed_executor(max_workers=2, name="Test") as executor:
             # Executor should be registered
-            assert executor in manager._executors
+            assert manager.get_executor_count() == 1
         
         # After context exit, executor should be unregistered
-        assert executor not in manager._executors
+        assert manager.get_executor_count() == 0
     
     def test_global_interrupt_stops_all_executors(self):
         """Test that global interrupt stops all executors."""
@@ -129,8 +129,8 @@ class TestInterruptHandlingIntegration:
         try:
             # Start both executors
             with create_managed_executor(max_workers=2, name="Executor1") as ex1:
-                # Both should be registered
-                assert ex1 in manager._executors
+                # Executor should be registered
+                assert manager.get_executor_count() == 1
                 
                 # Start processing on executor 1
                 results1 = ex1.map(slow_task, range(10))
@@ -144,7 +144,7 @@ class TestInterruptHandlingIntegration:
         assert elapsed < 3.0
         
         # After exit, no executors should be registered  
-        assert len(manager._executors) == 0
+        assert manager.get_executor_count() == 0
         
         manager.reset()
     

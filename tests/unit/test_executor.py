@@ -12,6 +12,7 @@ from mailbackup.executor import (
     ManagedThreadPoolExecutor,
     TaskResult,
     create_managed_executor,
+    get_global_interrupt_manager,
 )
 
 
@@ -237,6 +238,28 @@ class TestManagedThreadPoolExecutor:
         # Should have progress messages
         progress_msgs = [r for r in caplog.records if "Progress" in r.getMessage()]
         assert len(progress_msgs) > 0
+
+
+class TestGlobalInterruptManager:
+    """Tests for GlobalInterruptManager."""
+    
+    def test_get_executor_count(self):
+        """Test getting executor count."""
+        manager = get_global_interrupt_manager()
+        manager.reset()
+        
+        assert manager.get_executor_count() == 0
+        
+        with create_managed_executor(max_workers=2, name="Test1"):
+            assert manager.get_executor_count() == 1
+            
+            with create_managed_executor(max_workers=2, name="Test2"):
+                assert manager.get_executor_count() == 2
+            
+            assert manager.get_executor_count() == 1
+        
+        assert manager.get_executor_count() == 0
+        manager.reset()
 
 
 class TestCreateManagedExecutor:
