@@ -22,8 +22,9 @@ from mailbackup import db
 from mailbackup.config import Settings
 from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
+from mailbackup.statistics import StatusThread
 from mailbackup.utils import (
-    sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
+    sanitize, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
 )
 
 if TYPE_CHECKING:

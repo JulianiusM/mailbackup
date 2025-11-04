@@ -3,16 +3,18 @@
 """
 statistics.py
 
-Thread-safe statistics tracking for mailbackup.
+Thread-safe statistics tracking and status reporting for mailbackup.
 
-Provides a thread-safe counter for tracking various metrics across
-multiple threads without race conditions.
+Provides centralized statistics management with thread-safe counters
+and periodic status reporting across multiple worker threads.
 """
 
 from __future__ import annotations
 
 import threading
-from typing import Dict
+from typing import Dict, Optional, Any
+
+from mailbackup.logger import get_logger
 
 
 class ThreadSafeStats:
@@ -96,6 +98,123 @@ class ThreadSafeStats:
     def __setitem__(self, key: str, value: int) -> None:
         """Support dict-like assignment: stats['uploaded'] = 5"""
         self.set(key, value)
+    
+    def format_status(self) -> str:
+        """
+        Format current statistics as a status string.
+        
+        Returns:
+            Formatted status string with all counters
+        """
+        snapshot = self.get_all()
+        return (
+            f"Uploaded: {snapshot.get('uploaded', 0)} | "
+            f"Archived: {snapshot.get('archived', 0)} | "
+            f"Verified: {snapshot.get('verified', 0)} | "
+            f"Repaired: {snapshot.get('repaired', 0)} | "
+            f"Skipped: {snapshot.get('skipped', 0)} | "
+            f"Extracted: {snapshot.get('extracted', 0)}"
+        )
+
+
+class StatusThread:
+    """
+    Background thread for periodic status reporting.
+    
+    Runs in the background and periodically logs the current statistics.
+    Supports both dict and ThreadSafeStats for backward compatibility.
+    """
+    
+    def __init__(self, interval: int, counters: Dict[str, int] | ThreadSafeStats):
+        """
+        Initialize status reporter.
+        
+        Args:
+            interval: Seconds between status reports
+            counters: Statistics counters (dict or ThreadSafeStats)
+        """
+        self.logger = get_logger(__name__)
+        self.interval = interval
+        self.counters = counters
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self):
+        """Start the status reporting thread."""
+        if self._thread is not None:
+            return
+
+        def reporter():
+            while not self._stop_event.wait(self.interval):
+                # logger.status is registered at runtime by setup_logger; call via getattr
+                fn = getattr(self.logger, "status", None)
+                if callable(fn):
+                    fn(self.get_status_summary())
+                else:
+                    self.logger.info("[STATUS] " + self.get_status_summary())
+
+        t = threading.Thread(target=reporter, name="StatusReporter", daemon=True)
+        t.start()
+        self._thread = t
+
+    def stop(self):
+        """Stop the status reporting thread."""
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+
+    def get_status_summary(self) -> str:
+        """
+        Get formatted status summary.
+        
+        Returns:
+            Formatted status string
+        """
+        # If it's a ThreadSafeStats object with format_status method, use it
+        if isinstance(self.counters, ThreadSafeStats):
+            return self.counters.format_status()
+        
+        # Otherwise, treat as dict
+        return format_stats_dict(self.counters)
+
+
+def format_stats_dict(stats: Dict[str, int]) -> str:
+    """
+    Format a statistics dictionary as a status string.
+    
+    Args:
+        stats: Dictionary of statistics counters
+        
+    Returns:
+        Formatted status string
+    """
+    return (
+        f"Uploaded: {stats.get('uploaded', 0)} | "
+        f"Archived: {stats.get('archived', 0)} | "
+        f"Verified: {stats.get('verified', 0)} | "
+        f"Repaired: {stats.get('repaired', 0)} | "
+        f"Skipped: {stats.get('skipped', 0)} | "
+        f"Extracted: {stats.get('extracted', 0)}"
+    )
+
+
+def log_status(stats: ThreadSafeStats | Dict[str, int], stage: str = ""):
+    """
+    Log current statistics status.
+    
+    Args:
+        stats: Statistics counters
+        stage: Optional stage name to include in log message
+    """
+    logger = get_logger(__name__)
+    
+    if isinstance(stats, ThreadSafeStats):
+        status_str = stats.format_status()
+    else:
+        status_str = format_stats_dict(stats)
+    
+    prefix = f"[{stage}] " if stage else "[STATUS] "
+    logger.info(prefix + status_str)
 
 
 def create_stats() -> ThreadSafeStats:
@@ -106,3 +225,4 @@ def create_stats() -> ThreadSafeStats:
         ThreadSafeStats instance
     """
     return ThreadSafeStats()
+

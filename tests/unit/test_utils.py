@@ -292,7 +292,7 @@ class TestStatusThread:
             "skipped": 0
         }
         thread = StatusThread(interval=10, counters=counters)
-        summary = thread.status_summary()
+        summary = thread.get_status_summary()
         
         assert "Uploaded: 5" in summary
         assert "Archived: 3" in summary

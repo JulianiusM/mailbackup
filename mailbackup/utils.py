@@ -10,7 +10,6 @@ Utility helpers shared across the package:
 - sha256
 - subprocess run wrapper
 - atomic JSON write
-- status thread
 - docset-related helpers (build_info_json, load_attachments)
 """
 
@@ -24,7 +23,6 @@ import os
 import re
 import signal
 import subprocess
-import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -41,51 +39,9 @@ from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
 from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
+# Import StatusThread from statistics module for backward compatibility
+from mailbackup.statistics import StatusThread
 
-class StatusThread:
-    def __init__(self, interval: int, counters: Dict[str, int] | Any):
-        self.logger = get_logger(__name__)
-        self.interval = interval
-        self.counters = counters
-        self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-
-    def start(self):
-        if self._thread is not None:
-            return
-
-        def reporter():
-            while not self._stop_event.wait(self.interval):
-                # logger.status is registered at runtime by setup_logger; call via getattr
-                fn = getattr(self.logger, "status", None)
-                if callable(fn):
-                    fn(self.status_summary())
-                else:
-                    self.logger.info("[STATUS] " + self.status_summary())
-
-        t = threading.Thread(target=reporter, name="StatusReporter", daemon=True)
-        t.start()
-        self._thread = t
-
-    def stop(self):
-        self._stop_event.set()
-        if self._thread is not None:
-            self._thread.join(timeout=2.0)
-
-    def status_summary(self) -> str:
-        # Support both dict and ThreadSafeStats
-        if isinstance(self.counters, dict):
-            get_val = lambda k: self.counters.get(k, 0)
-        else:
-            get_val = lambda k: self.counters.get(k, 0)
-        
-        return (
-            f"Uploaded: {get_val('uploaded')} | "
-            f"Archived: {get_val('archived')} | "
-            f"Verified: {get_val('verified')} | "
-            f"Repaired: {get_val('repaired')} | "
-            f"Skipped: {get_val('skipped')}"
-        )
 
 
 def sanitize(s: Optional[str]) -> str:

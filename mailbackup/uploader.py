@@ -202,16 +202,6 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: Thr
     manifest.upload_manifest_if_needed()
     logger.info("Incremental upload complete.")
     
-    # Get stats in a thread-safe way
-    if isinstance(stats, dict):
-        stats_dict = stats
-    else:
-        stats_dict = stats.get_all()
-    
-    logger.info("[STATUS] Uploaded: {u} | Archived: {a} | Verified: {v} | Repaired: {r} | Skipped: {s}".format(
-        u=stats_dict.get("uploaded", 0),
-        a=stats_dict.get("archived", 0),
-        v=stats_dict.get("verified", 0),
-        r=stats_dict.get("repaired", 0),
-        s=stats_dict.get("skipped", 0),
-    ))
+    # Log final status using centralized function
+    from mailbackup.statistics import log_status
+    log_status(stats, "Upload Complete")

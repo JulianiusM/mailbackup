@@ -148,6 +148,104 @@ class TestThreadSafeStats:
         # All reads should return valid values (no corruption)
         assert all(r >= 100 for r in results)
         assert stats.get("uploaded") == 110
+    
+    def test_format_status(self):
+        """Test format_status method."""
+        stats = ThreadSafeStats()
+        stats.increment("uploaded", 5)
+        stats.increment("archived", 3)
+        stats.increment("verified", 2)
+        
+        status = stats.format_status()
+        assert "Uploaded: 5" in status
+        assert "Archived: 3" in status
+        assert "Verified: 2" in status
+        assert "Repaired: 0" in status
+        assert "Skipped: 0" in status
+
+
+class TestStatusThread:
+    """Tests for StatusThread class."""
+    
+    def test_status_thread_basic(self):
+        """Test basic StatusThread functionality."""
+        from mailbackup.statistics import StatusThread
+        
+        stats = create_stats()
+        stats.increment("uploaded", 5)
+        
+        # Short interval for testing
+        status_thread = StatusThread(interval=1, counters=stats)
+        status_thread.start()
+        
+        # Give it a moment to run
+        time.sleep(0.1)
+        
+        status_thread.stop()
+        
+        # Should complete without errors
+        assert True
+    
+    def test_status_thread_with_dict(self):
+        """Test StatusThread with plain dict."""
+        from mailbackup.statistics import StatusThread
+        
+        stats_dict = {"uploaded": 10, "archived": 5}
+        
+        status_thread = StatusThread(interval=1, counters=stats_dict)
+        status_thread.start()
+        time.sleep(0.1)
+        status_thread.stop()
+        
+        assert True
+    
+    def test_get_status_summary(self):
+        """Test get_status_summary method."""
+        from mailbackup.statistics import StatusThread
+        
+        stats = create_stats()
+        stats.increment("uploaded", 10)
+        stats.increment("verified", 5)
+        
+        status_thread = StatusThread(interval=1, counters=stats)
+        summary = status_thread.get_status_summary()
+        
+        assert "Uploaded: 10" in summary
+        assert "Verified: 5" in summary
+
+
+class TestFormatStatsFunctions:
+    """Tests for format functions."""
+    
+    def test_format_stats_dict(self):
+        """Test format_stats_dict function."""
+        from mailbackup.statistics import format_stats_dict
+        
+        stats = {"uploaded": 5, "archived": 3, "verified": 2}
+        result = format_stats_dict(stats)
+        
+        assert "Uploaded: 5" in result
+        assert "Archived: 3" in result
+        assert "Verified: 2" in result
+    
+    def test_log_status_with_stats(self):
+        """Test log_status with ThreadSafeStats."""
+        from mailbackup.statistics import log_status
+        
+        stats = create_stats()
+        stats.increment("uploaded", 10)
+        
+        # Should not raise any errors
+        log_status(stats, "Test Stage")
+    
+    def test_log_status_with_dict(self):
+        """Test log_status with dict."""
+        from mailbackup.statistics import log_status
+        
+        stats = {"uploaded": 10, "verified": 5}
+        
+        # Should not raise any errors
+        log_status(stats, "Test Stage")
 
 
 class TestCreateStats:
