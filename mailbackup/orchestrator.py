@@ -91,7 +91,7 @@ def run_pipeline(
             else:
                 logger.warning(f"Unknown stage '{label}' – skipped")
 
-            log_stats(stats, f"{label} finished")
+            log_status(stats, f"{label} finished")
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Command failed: {e.cmd} (exit {e.returncode})")

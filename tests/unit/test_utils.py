@@ -305,3 +305,185 @@ class TestStatusThread:
 
         thread.stop()
         # Thread should be stopped
+
+
+class TestAtomicOperations:
+    """Tests for atomic file operations."""
+
+    def test_atomic_write_text_creates_file(self, tmp_path):
+        """Test atomic_write_text creates file successfully."""
+        from mailbackup.utils import atomic_write_text
+        
+        file_path = tmp_path / "test.txt"
+        content = "Test content\n"
+        
+        atomic_write_text(file_path, content)
+        
+        assert file_path.exists()
+        assert file_path.read_text() == content
+
+    def test_atomic_write_text_with_list(self, tmp_path):
+        """Test atomic_write_text with list of lines."""
+        from mailbackup.utils import atomic_write_text
+        
+        file_path = tmp_path / "test.txt"
+        content = ["Line 1\n", "Line 2\n", "Line 3\n"]
+        
+        atomic_write_text(file_path, content)
+        
+        assert file_path.exists()
+        assert file_path.read_text() == "Line 1\nLine 2\nLine 3\n"
+
+
+class TestDateParsing:
+    """Tests for date parsing functions."""
+
+    def test_parse_mail_date_rfc2822(self):
+        """Test parse_mail_date with RFC 2822 format."""
+        from mailbackup.utils import parse_mail_date
+        
+        date_str = "Mon, 1 Jan 2024 12:00:00 +0000"
+        result = parse_mail_date(date_str)
+        
+        assert result is not None
+        assert result.year == 2024
+
+    def test_parse_mail_date_iso_format(self):
+        """Test parse_mail_date with ISO format."""
+        from mailbackup.utils import parse_mail_date
+        
+        date_str = "2024-01-01T12:00:00"
+        result = parse_mail_date(date_str)
+        
+        assert result is not None
+        assert result.year == 2024
+
+    def test_parse_mail_date_invalid(self):
+        """Test parse_mail_date with invalid date."""
+        from mailbackup.utils import parse_mail_date
+        
+        date_str = "not a valid date"
+        result = parse_mail_date(date_str)
+        
+        # Should return current time
+        assert result is not None
+
+    def test_parse_mail_date_empty(self):
+        """Test parse_mail_date with empty string."""
+        from mailbackup.utils import parse_mail_date
+        
+        result = parse_mail_date("")
+        
+        # Should return current time
+        assert result is not None
+
+
+class TestRemoteHashOperations:
+    """Tests for remote hash computation."""
+
+    def test_compute_remote_sha256_success(self, test_settings, mocker):
+        """Test compute_remote_sha256 with successful hash computation."""
+        from mailbackup.utils import compute_remote_sha256
+        
+        # Mock rclone_cat to return content
+        mocker.patch("mailbackup.utils.rclone_cat", return_value=mocker.Mock(
+            returncode=0,
+            stdout="test content"
+        ))
+        
+        result = compute_remote_sha256(test_settings, "path/to/file.txt")
+        
+        # Should return a SHA256 hash
+        assert result != ""
+        assert len(result) == 64  # SHA256 hex length
+
+    def test_compute_remote_sha256_failure(self, test_settings, mocker):
+        """Test compute_remote_sha256 when rclone fails."""
+        from mailbackup.utils import compute_remote_sha256
+        
+        # Mock rclone_cat to fail
+        mocker.patch("mailbackup.utils.rclone_cat", side_effect=Exception("rclone failed"))
+        
+        result = compute_remote_sha256(test_settings, "path/to/file.txt")
+        
+        # Should return empty string
+        assert result == ""
+
+    def test_compute_remote_sha256_exception(self, test_settings, mocker):
+        """Test compute_remote_sha256 when exception occurs."""
+        from mailbackup.utils import compute_remote_sha256
+        
+        # Mock rclone_cat to raise exception
+        mocker.patch("mailbackup.utils.rclone_cat", side_effect=Exception("Error"))
+        
+        result = compute_remote_sha256(test_settings, "path/to/file.txt")
+        
+        # Should return empty string
+        assert result == ""
+
+
+class TestWorkingDirectory:
+    """Tests for working_dir context manager."""
+
+    def test_working_dir_changes_directory(self, tmp_path):
+        """Test working_dir context manager changes directory."""
+        from mailbackup.utils import working_dir
+        import os
+        
+        original_dir = os.getcwd()
+        test_dir = tmp_path / "testdir"
+        test_dir.mkdir()
+        
+        with working_dir(test_dir):
+            assert os.getcwd() == str(test_dir)
+        
+        # Should restore original directory
+        assert os.getcwd() == original_dir
+
+    def test_working_dir_exception_restores(self, tmp_path):
+        """Test working_dir restores directory even on exception."""
+        from mailbackup.utils import working_dir
+        import os
+        
+        original_dir = os.getcwd()
+        test_dir = tmp_path / "testdir"
+        test_dir.mkdir()
+        
+        try:
+            with working_dir(test_dir):
+                raise ValueError("Test exception")
+        except ValueError:
+            pass
+        
+        # Should still restore original directory
+        assert os.getcwd() == original_dir
+
+
+class TestEnsureDirs:
+    """Tests for ensure_dirs function."""
+
+    def test_ensure_dirs_creates_directories(self, tmp_path):
+        """Test ensure_dirs creates multiple directories."""
+        from mailbackup.utils import ensure_dirs
+        
+        dir1 = tmp_path / "dir1"
+        dir2 = tmp_path / "dir2"
+        dir3 = tmp_path / "dir3"
+        
+        ensure_dirs(dir1, dir2, dir3)
+        
+        assert dir1.exists() and dir1.is_dir()
+        assert dir2.exists() and dir2.is_dir()
+        assert dir3.exists() and dir3.is_dir()
+
+    def test_ensure_dirs_existing_directories(self, tmp_path):
+        """Test ensure_dirs with existing directories."""
+        from mailbackup.utils import ensure_dirs
+        
+        dir1 = tmp_path / "dir1"
+        dir1.mkdir()
+        
+        # Should not raise error
+        ensure_dirs(dir1)
+        
+        assert dir1.exists()

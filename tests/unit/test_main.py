@@ -127,27 +127,7 @@ class TestMain:
         assert "archive" in call_kwargs["stages"]
         assert "check" in call_kwargs["stages"]
 
-    def test_main_legacy_extract(self, mocker, test_settings, mock_dependencies):
-        """Test main with legacy extract action."""
-        mock_dependencies["load_settings"].return_value = test_settings
-        mocker.patch("sys.argv", ["mailbackup", "extract"])
 
-        main()
-
-        mock_dependencies["run_pipeline"].assert_called_once()
-        call_kwargs = mock_dependencies["run_pipeline"].call_args[1]
-        assert call_kwargs["process"] is True
-
-    def test_main_legacy_upload(self, mocker, test_settings, mock_dependencies):
-        """Test main with legacy upload action."""
-        mock_dependencies["load_settings"].return_value = test_settings
-        mocker.patch("sys.argv", ["mailbackup", "upload"])
-
-        main()
-
-        mock_dependencies["run_pipeline"].assert_called_once()
-        call_kwargs = mock_dependencies["run_pipeline"].call_args[1]
-        assert "backup" in call_kwargs["stages"]
 
     def test_main_with_config(self, mocker, test_settings, mock_dependencies):
         """Test main with --config option."""

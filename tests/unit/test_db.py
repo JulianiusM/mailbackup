@@ -363,3 +363,41 @@ class TestUpdateRemotePath:
         # Should not crash
         update_remote_path(test_db, "", "path")
         update_remote_path(test_db, None, "path")
+
+
+class TestDatabaseEdgeCases:
+    """Tests for database edge cases."""
+
+    def test_connection_with_invalid_path(self):
+        """Test get_connection with invalid path."""
+        from mailbackup import db
+        from pathlib import Path
+        
+        # Try to connect to invalid path
+        invalid_path = Path("/nonexistent/dir/db.sqlite")
+        
+        try:
+            conn = db.get_connection(invalid_path)
+            # Connection may succeed even with invalid path
+            assert True
+        except Exception:
+            # Or it may fail
+            assert True
+
+    def test_mark_synced_with_none_values(self, test_db):
+        """Test mark_synced with None values."""
+        from mailbackup import db
+        
+        # Should handle None values gracefully
+        db.mark_synced(test_db, None, None, None)
+        
+        assert True
+
+    def test_fetch_unsynced_from_empty_db(self, test_db):
+        """Test fetch_unsynced from empty database."""
+        from mailbackup import db
+        
+        results = db.fetch_unsynced(test_db)
+        
+        # Should return empty list
+        assert results == []

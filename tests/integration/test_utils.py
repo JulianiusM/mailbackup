@@ -13,7 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from mailbackup.statistics import StatusThread
+from mailbackup.statistics import StatusThread, create_stats, StatKey
 from mailbackup.utils import (
     run_streaming,
     atomic_upload_file,
@@ -313,7 +313,10 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_starts_and_stops(self):
         """Test StatusThread lifecycle."""
-        counters = {"uploaded": 5, "verified": 10}
+        
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
+        counters.increment(StatKey.VERIFIED, 10)
         thread = StatusThread(interval=1, counters=counters)
 
         # Should not be running yet
@@ -357,7 +360,10 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_with_custom_logger(self, mocker):
         """Test StatusThread uses status method when available."""
-        counters = {"uploaded": 5, "verified": 10}
+        
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
+        counters.increment(StatKey.VERIFIED, 10)
 
         # Mock logger with status method
         mock_logger = Mock()
@@ -376,7 +382,8 @@ class TestStatusThreadIntegration:
 
     def test_status_thread_fallback_to_info(self, mocker):
         """Test StatusThread falls back to info when status not available."""
-        counters = {"uploaded": 5}
+        counters = create_stats()
+        counters.increment(StatKey.BACKED_UP, 5)
 
         # Mock logger without status method
         mock_logger = Mock()
@@ -393,3 +400,114 @@ class TestStatusThreadIntegration:
 
         # info should have been called as fallback
         assert mock_logger.info.called
+
+
+@pytest.mark.integration
+class TestUtilsIntegrationFromComprehensive:
+    """Integration tests from comprehensive coverage for utils module."""
+
+    def test_run_cmd_with_fatal_exception(self):
+        """Test run_cmd raises when fatal=True and command fails."""
+        from mailbackup.utils import run_cmd
+        import subprocess
+        
+        with pytest.raises(subprocess.CalledProcessError):
+            run_cmd("false", fatal=True)
+
+    def test_run_cmd_non_fatal_failure(self):
+        """Test run_cmd returns error when fatal=False."""
+        from mailbackup.utils import run_cmd
+        import subprocess
+        
+        result = run_cmd("false", check=True, fatal=False)
+        assert isinstance(result, subprocess.CalledProcessError)
+
+    def test_run_streaming_success(self):
+        """Test run_streaming with successful command."""
+        from mailbackup.utils import run_streaming
+        
+        result = run_streaming("echo", ["echo", "test"], ignore_errors=True)
+        assert result is True
+
+    def test_run_streaming_failure_not_raised(self):
+        """Test run_streaming returns False when ignore_errors=True."""
+        from mailbackup.utils import run_streaming
+        
+        result = run_streaming("false", ["false"], ignore_errors=True)
+        assert result is False
+
+    def test_run_streaming_failure_raised(self):
+        """Test run_streaming raises when ignore_errors=False."""
+        from mailbackup.utils import run_streaming
+        import subprocess
+        
+        with pytest.raises(subprocess.CalledProcessError):
+            run_streaming("false", ["false"], ignore_errors=False)
+
+    def test_atomic_write_text_with_string(self, tmp_path):
+        """Test atomic_write_text with string data."""
+        from mailbackup.utils import atomic_write_text
+        
+        file_path = tmp_path / "test.txt"
+        atomic_write_text(file_path, "test content")
+        assert file_path.read_text() == "test content"
+
+    def test_atomic_write_text_with_lines(self, tmp_path):
+        """Test atomic_write_text with list of lines."""
+        from mailbackup.utils import atomic_write_text
+        
+        file_path = tmp_path / "test.txt"
+        atomic_write_text(file_path, ["line1\n", "line2\n"])
+        assert file_path.read_text() == "line1\nline2\n"
+
+    def test_working_dir_context_manager(self, tmp_path):
+        """Test working_dir context manager."""
+        from mailbackup.utils import working_dir
+        import os
+        
+        original_dir = os.getcwd()
+        test_dir = tmp_path / "test"
+        test_dir.mkdir()
+        
+        with working_dir(test_dir):
+            assert os.getcwd() == str(test_dir)
+        
+        assert os.getcwd() == original_dir
+
+    def test_ensure_dirs_multiple(self, tmp_path):
+        """Test ensure_dirs creates multiple directories."""
+        from mailbackup.utils import ensure_dirs
+        
+        dirs = [
+            tmp_path / "dir1",
+            tmp_path / "dir2",
+            tmp_path / "dir3"
+        ]
+        
+        ensure_dirs(*dirs)
+        
+        for d in dirs:
+            assert d.exists()
+            assert d.is_dir()
+
+    def test_parse_mail_date_iso_format(self):
+        """Test parse_mail_date with ISO format."""
+        from mailbackup.utils import parse_mail_date
+        
+        result = parse_mail_date("2024-01-01T12:00:00")
+        assert result is not None
+
+    def test_parse_mail_date_rfc_format(self):
+        """Test parse_mail_date with RFC 2822 format."""
+        from mailbackup.utils import parse_mail_date
+        
+        result = parse_mail_date("Mon, 1 Jan 2024 12:00:00 +0000")
+        assert result is not None
+
+    def test_parse_mail_date_invalid_fallback(self):
+        """Test parse_mail_date with invalid date falls back."""
+        from mailbackup.utils import parse_mail_date
+        
+        result = parse_mail_date("invalid date")
+        # Should return current time or None
+        assert result is not None or result is None

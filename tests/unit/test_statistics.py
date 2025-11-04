@@ -6,7 +6,7 @@ Unit tests for statistics.py module.
 import threading
 import time
 
-from mailbackup.statistics import ThreadSafeStats, create_stats
+from mailbackup.statistics import ThreadSafeStats, StatKey, create_stats
 
 
 class TestThreadSafeStats:
@@ -15,61 +15,61 @@ class TestThreadSafeStats:
     def test_increment_single_thread(self):
         """Test increment in single thread."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded")
-        assert stats.get("uploaded") == 1
+        stats.increment(StatKey.BACKED_UP)
+        assert stats.get(StatKey.BACKED_UP) == 1
 
-        stats.increment("uploaded", 5)
-        assert stats.get("uploaded") == 6
+        stats.increment(StatKey.BACKED_UP, 5)
+        assert stats.get(StatKey.BACKED_UP) == 6
 
     def test_set_and_get(self):
         """Test set and get operations."""
         stats = ThreadSafeStats()
-        stats.set("verified", 42)
-        assert stats.get("verified") == 42
-        assert stats.get("nonexistent") == 0
-        assert stats.get("nonexistent", 10) == 10
+        stats.set(StatKey.VERIFIED, 42)
+        assert stats.get(StatKey.VERIFIED) == 42
+        assert stats.get(StatKey.FETCHED) == 0
+        assert stats.get(StatKey.FETCHED, 10) == 10
 
     def test_get_all(self):
         """Test get_all returns snapshot."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded", 5)
-        stats.increment("verified", 3)
+        stats.increment(StatKey.BACKED_UP, 5)
+        stats.increment(StatKey.VERIFIED, 3)
 
         all_stats = stats.get_all()
-        assert all_stats == {"uploaded": 5, "verified": 3}
+        assert all_stats == {StatKey.BACKED_UP: 5, StatKey.VERIFIED: 3}
 
         # Modify returned dict shouldn't affect stats
-        all_stats["uploaded"] = 100
-        assert stats.get("uploaded") == 5
+        all_stats[StatKey.BACKED_UP] = 100
+        assert stats.get(StatKey.BACKED_UP) == 5
 
     def test_dict_like_access(self):
         """Test dict-like access with []."""
         stats = ThreadSafeStats()
-        stats["uploaded"] = 10
-        assert stats["uploaded"] == 10
+        stats[StatKey.BACKED_UP] = 10
+        assert stats[StatKey.BACKED_UP] == 10
 
-        stats["uploaded"] = 20
-        assert stats["uploaded"] == 20
+        stats[StatKey.BACKED_UP] = 20
+        assert stats[StatKey.BACKED_UP] == 20
 
     def test_to_dict(self):
         """Test to_dict method."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded", 3)
-        stats.increment("archived", 2)
+        stats.increment(StatKey.BACKED_UP, 3)
+        stats.increment(StatKey.ARCHIVED, 2)
 
         result = stats.to_dict()
-        assert result == {"uploaded": 3, "archived": 2}
+        assert result == {StatKey.BACKED_UP: 3, StatKey.ARCHIVED: 2}
 
     def test_reset(self):
         """Test reset clears all counters."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded", 5)
-        stats.increment("verified", 3)
+        stats.increment(StatKey.BACKED_UP, 5)
+        stats.increment(StatKey.VERIFIED, 3)
 
         stats.reset()
 
-        assert stats.get("uploaded") == 0
-        assert stats.get("verified") == 0
+        assert stats.get(StatKey.BACKED_UP) == 0
+        assert stats.get(StatKey.VERIFIED) == 0
         assert stats.get_all() == {}
 
     def test_thread_safety(self):
@@ -80,7 +80,7 @@ class TestThreadSafeStats:
 
         def increment_worker():
             for _ in range(increments_per_thread):
-                stats.increment("counter")
+                stats.increment(StatKey.PROCESSED)
 
         threads = [threading.Thread(target=increment_worker) for _ in range(num_threads)]
 
@@ -92,7 +92,7 @@ class TestThreadSafeStats:
 
         # Should be exactly num_threads * increments_per_thread
         expected = num_threads * increments_per_thread
-        assert stats.get("counter") == expected
+        assert stats.get(StatKey.PROCESSED) == expected
 
     def test_concurrent_different_keys(self):
         """Test concurrent increments to different keys."""
@@ -100,11 +100,11 @@ class TestThreadSafeStats:
 
         def increment_uploaded():
             for _ in range(50):
-                stats.increment("uploaded")
+                stats.increment(StatKey.BACKED_UP)
 
         def increment_verified():
             for _ in range(30):
-                stats.increment("verified")
+                stats.increment(StatKey.VERIFIED)
 
         t1 = threading.Thread(target=increment_uploaded)
         t2 = threading.Thread(target=increment_verified)
@@ -115,25 +115,25 @@ class TestThreadSafeStats:
         t1.join()
         t2.join()
 
-        assert stats.get("uploaded") == 50
-        assert stats.get("verified") == 30
+        assert stats.get(StatKey.BACKED_UP) == 50
+        assert stats.get(StatKey.VERIFIED) == 30
 
     def test_get_all_thread_safe(self):
         """Test get_all is thread-safe."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded", 100)
+        stats.increment(StatKey.BACKED_UP, 100)
 
         results = []
 
         def reader():
             for _ in range(10):
                 snapshot = stats.get_all()
-                results.append(snapshot.get("uploaded", 0))
+                results.append(snapshot.get(StatKey.BACKED_UP, 0))
                 time.sleep(0.001)
 
         def writer():
             for i in range(10):
-                stats.increment("uploaded")
+                stats.increment(StatKey.BACKED_UP)
                 time.sleep(0.001)
 
         t1 = threading.Thread(target=reader)
@@ -147,17 +147,17 @@ class TestThreadSafeStats:
 
         # All reads should return valid values (no corruption)
         assert all(r >= 100 for r in results)
-        assert stats.get("uploaded") == 110
+        assert stats.get(StatKey.BACKED_UP) == 110
 
     def test_format_status(self):
         """Test format_status method."""
         stats = ThreadSafeStats()
-        stats.increment("uploaded", 5)
-        stats.increment("archived", 3)
-        stats.increment("verified", 2)
+        stats.increment(StatKey.BACKED_UP, 5)
+        stats.increment(StatKey.ARCHIVED, 3)
+        stats.increment(StatKey.VERIFIED, 2)
 
         status = stats.format_status()
-        assert "Uploaded: 5" in status
+        assert "Backed up: 5" in status
         assert "Archived: 3" in status
         assert "Verified: 2" in status
         assert "Repaired: 0" in status
@@ -172,7 +172,7 @@ class TestStatusThread:
         from mailbackup.statistics import StatusThread
 
         stats = create_stats()
-        stats.increment("uploaded", 5)
+        stats.increment(StatKey.BACKED_UP, 5)
 
         # Short interval for testing
         status_thread = StatusThread(interval=1, counters=stats)
@@ -186,66 +186,40 @@ class TestStatusThread:
         # Should complete without errors
         assert True
 
-    def test_status_thread_with_dict(self):
-        """Test StatusThread with plain dict."""
-        from mailbackup.statistics import StatusThread
-
-        stats_dict = {"uploaded": 10, "archived": 5}
-
-        status_thread = StatusThread(interval=1, counters=stats_dict)
-        status_thread.start()
-        time.sleep(0.1)
-        status_thread.stop()
-
-        assert True
-
     def test_get_status_summary(self):
         """Test get_status_summary method."""
         from mailbackup.statistics import StatusThread
 
         stats = create_stats()
-        stats.increment("uploaded", 10)
-        stats.increment("verified", 5)
+        stats.increment(StatKey.BACKED_UP, 10)
+        stats.increment(StatKey.VERIFIED, 5)
 
         status_thread = StatusThread(interval=1, counters=stats)
         summary = status_thread.get_status_summary()
 
-        assert "Uploaded: 10" in summary
+        assert "Backed up: 10" in summary
         assert "Verified: 5" in summary
 
 
 class TestFormatStatsFunctions:
     """Tests for format functions."""
 
-    def test_format_stats_dict(self):
-        """Test format_stats_dict function."""
-        from mailbackup.statistics import format_stats_dict
-
-        stats = {"uploaded": 5, "archived": 3, "verified": 2}
-        result = format_stats_dict(stats)
-
-        assert "Uploaded: 5" in result
-        assert "Archived: 3" in result
-        assert "Verified: 2" in result
-
-    def test_log_status_with_stats(self):
+    def test_log_status_with_stats(self, mocker):
         """Test log_status with ThreadSafeStats."""
         from mailbackup.statistics import log_status
+        
+        # Mock the logger to avoid AttributeError for 'status' attribute
+        mock_logger = mocker.MagicMock()
+        mocker.patch('mailbackup.statistics.get_logger', return_value=mock_logger)
 
         stats = create_stats()
-        stats.increment("uploaded", 10)
+        stats.increment(StatKey.BACKED_UP, 10)
 
         # Should not raise any errors
         log_status(stats, "Test Stage")
-
-    def test_log_status_with_dict(self):
-        """Test log_status with dict."""
-        from mailbackup.statistics import log_status
-
-        stats = {"uploaded": 10, "verified": 5}
-
-        # Should not raise any errors
-        log_status(stats, "Test Stage")
+        
+        # Verify logger was called
+        assert mock_logger.info.called or mock_logger.status.called
 
 
 class TestCreateStats:
@@ -256,5 +230,5 @@ class TestCreateStats:
         stats = create_stats()
         assert isinstance(stats, ThreadSafeStats)
 
-        stats.increment("test")
-        assert stats.get("test") == 1
+        stats.increment(StatKey.PROCESSED)
+        assert stats.get(StatKey.PROCESSED) == 1

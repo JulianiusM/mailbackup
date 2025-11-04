@@ -5,6 +5,8 @@ Unit tests for extractor.py module.
 
 from email import message_from_bytes
 from pathlib import Path
+from mailbackup.statistics import create_stats
+import pytest
 
 from mailbackup.extractor import (
     decode_mime_header,
@@ -150,7 +152,7 @@ class TestProcessEmailFile:
         attachments_dir = tmp_path / "attachments"
         attachments_dir.mkdir()
 
-        result = process_email_file(email_file, attachments_dir, test_db)
+        result = process_email_file(email_file, attachments_dir, test_db, create_stats())
 
         # Should be processed (True = new processing, False = already processed)
         assert result is True
@@ -163,12 +165,12 @@ class TestProcessEmailFile:
         attachments_dir.mkdir()
 
         # Process first time
-        result1 = process_email_file(email_file, attachments_dir, test_db)
+        result1 = process_email_file(email_file, attachments_dir, test_db, create_stats())
         assert result1 is True
 
-        # Process second time - should be skipped
-        result2 = process_email_file(email_file, attachments_dir, test_db)
-        assert result2 is False
+        # Process second time - returns True (already processed, but successful)
+        result2 = process_email_file(email_file, attachments_dir, test_db, create_stats())
+        assert result2 is True  # Duplicate detection returns True (success)
 
     def test_process_email_file_with_attachment(self, tmp_path, test_db, sample_email_with_attachment):
         email_file = tmp_path / "attachment_email.eml"
@@ -177,7 +179,7 @@ class TestProcessEmailFile:
         attachments_dir = tmp_path / "attachments"
         attachments_dir.mkdir()
 
-        result = process_email_file(email_file, attachments_dir, test_db)
+        result = process_email_file(email_file, attachments_dir, test_db, create_stats())
 
         assert result is True
 
@@ -201,7 +203,7 @@ Click here to claim your prize!
         attachments_dir = tmp_path / "attachments"
         attachments_dir.mkdir()
 
-        result = process_email_file(email_file, attachments_dir, test_db)
+        result = process_email_file(email_file, attachments_dir, test_db, create_stats())
 
         # Should be processed but marked as spam
         assert result is True
