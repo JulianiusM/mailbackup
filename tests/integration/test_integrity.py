@@ -12,7 +12,6 @@ import shutil
 from unittest.mock import Mock
 
 import pytest
-from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup.integrity import integrity_check, repair_remote, rebuild_docset
 from mailbackup.manifest import ManifestManager
