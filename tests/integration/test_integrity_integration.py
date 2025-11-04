@@ -267,7 +267,7 @@ class TestIntegrityCheckIntegration:
 
         # Assert
         assert stats[StatKey.VERIFIED] == 1
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
         manifest.queue_entry.assert_called_once()
         mock_update_path.assert_called_once()
 
@@ -318,7 +318,7 @@ class TestIntegrityCheckIntegration:
 
         # Assert
         assert stats[StatKey.VERIFIED] == 1
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
 
     def test_integrity_check_no_remote_hashsum_available(self, test_settings, mocker):
         """Test integrity check when both manifest and hashsum are unavailable."""
@@ -417,7 +417,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
         manifest.queue_entry.assert_called_once()
         mock_update_path.assert_called_once()
 
@@ -461,7 +461,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
 
     def test_repair_remote_upload_failure(self, test_settings, mocker):
         """Test repair handles upload failures gracefully."""
@@ -500,7 +500,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert - repaired counter still increments (tracks attempts)
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.FAILED] == 1  # Repair attempt failed
         # But DB should not be updated
         mock_update_path.assert_not_called()
         manifest.queue_entry.assert_not_called()
@@ -536,7 +536,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert - repair is attempted even without local file
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
 
     def test_repair_remote_missing_local_attachments(self, test_settings, mocker):
         """Test repair when local attachments are missing."""
@@ -574,7 +574,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats[StatKey.REPAIRED] == 1
+        assert stats[StatKey.REPAIRED] == 1 
 
 
 @pytest.mark.integration
