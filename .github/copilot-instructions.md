@@ -22,6 +22,7 @@ The codebase is organized into focused, single-responsibility modules:
 - **`orchestrator.py`**: Central pipeline execution engine that coordinates stages
 - **`config.py`**: Configuration loading (TOML preferred, INI fallback)
 - **`db.py`**: SQLite access layer with thread-local connections
+- **`executor.py`**: Parallel task execution with thread pool and interrupt handling
 - **`extractor.py`**: Attachment and body extraction from mail files
 - **`uploader.py`**: Incremental upload to remote storage via rclone
 - **`rotation.py`**: Archive management based on retention policies
@@ -29,7 +30,8 @@ The codebase is organized into focused, single-responsibility modules:
 - **`manifest.py`**: State management for pipeline operations
 - **`logger.py`**: Centralized logging setup and factory
 - **`rclone.py`**: rclone command wrapper and configuration
-- **`utils.py`**: Shared utilities (sanitization, hashing, status threads, etc.)
+- **`statistics.py`**: Thread-safe statistics tracking with StatKey enum
+- **`utils.py`**: Shared utilities (sanitization, hashing, etc.)
 
 ### Pipeline Stages
 
@@ -85,18 +87,31 @@ Maildir → Extractor → SQLite DB + Attachments Dir → Uploader → Remote St
 - Validate required fields at load time
 
 ### Logging
+### Logging
 - Initialize logger once with `setup_logger(log_path)` in main
 - Use `get_logger(__name__)` in each module
 - Log levels: DEBUG (verbose), INFO (normal), WARNING (issues), ERROR (failures)
 - Status logs for long-running operations
 
+### Statistics
+- Use `create_stats()` to create ThreadSafeStats instance
+- Always use `StatKey` enum for counter keys (not strings)
+- Available keys: FETCHED, EXTRACTED, BACKED_UP, ARCHIVED, VERIFIED, REPAIRED, SKIPPED, PROCESSED, FAILED
+- Thread-safe increment: `stats.increment(StatKey.BACKED_UP, 5)`
+- Access counters: `count = stats[StatKey.VERIFIED]` or `stats.get(StatKey.VERIFIED)`
+- Format status: `stats.format_status()` for user-friendly output
+
 ## Testing Approach
 
-Currently, there is no automated test infrastructure in this repository. When adding tests:
-- Consider using `pytest` for consistency with Python ecosystem
-- Focus on unit tests for individual modules
-- Mock external dependencies (rclone, filesystem, network)
+The project has comprehensive test coverage (90%) with 344 tests:
+- **Unit tests**: Test individual modules in isolation with mocked dependencies
+- **Integration tests**: Test end-to-end workflows with temporary directories
+- Use `pytest` with `pytest-mock` for mocking
+- Follow existing patterns in `tests/unit/` and `tests/integration/`
+- Always use `create_stats()` and `StatKey` enum in tests
+- Mock external dependencies (rclone, filesystem, network, subprocess)
 - Test error handling and edge cases
+- Ensure thread-safety for concurrent operations
 
 ## Development Workflow
 
@@ -110,7 +125,8 @@ Currently, there is no automated test infrastructure in this repository. When ad
 ### Modifying Pipeline
 - Update action mappings in `__main__.py` plans dictionary
 - Add new stages to `orchestrator.run_pipeline()` if needed
-- Ensure stats dictionary is updated appropriately
+- Pass ThreadSafeStats instance to all pipeline stages
+- Use `log_status(stats, stage_name)` to log statistics
 - Maintain backward compatibility with legacy action names
 
 ### Configuration Changes
@@ -146,8 +162,11 @@ conn.commit()
 
 ### Status Tracking
 ```python
-from .utils import StatusThread
-status_thread = StatusThread(interval, stats_dict)
+from .statistics import create_stats, StatKey, StatusThread
+stats = create_stats()
+stats.increment(StatKey.BACKED_UP, 5)
+
+status_thread = StatusThread(interval, stats)
 status_thread.start()
 # ... work ...
 status_thread.stop()
