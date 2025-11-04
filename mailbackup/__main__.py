@@ -15,6 +15,7 @@ from pathlib import Path
 
 from mailbackup import db
 from mailbackup.config import load_settings
+from mailbackup.executor import get_global_interrupt_manager
 from mailbackup.logger import setup_logger, get_logger
 from mailbackup.manifest import ManifestManager
 from mailbackup.orchestrator import run_pipeline
@@ -69,9 +70,16 @@ def main():
     status_thread = StatusThread(settings.status_interval, stats)
     status_thread.start()
 
+    # Get global interrupt manager for coordinated shutdown
+    interrupt_manager = get_global_interrupt_manager()
+
     def on_interrupt(signum, frame):
         logger.warning("Interrupt received. Saving state and exiting safely...")
+        # Signal all executors to shutdown
+        interrupt_manager.interrupt_all()
+        # Save manifest state
         manifest.dump_queue()
+        # Stop status thread
         status_thread.stop()
         sys.exit(1)
 

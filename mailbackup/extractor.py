@@ -14,18 +14,21 @@ Preserves spam detection, Windows-safe filenames, periodic status logging.
 from __future__ import annotations
 
 import email
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.header import decode_header, make_header
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
 
 from mailbackup import db
 from mailbackup.config import Settings
+from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
+from mailbackup.statistics import StatusThread
 from mailbackup.utils import (
-    sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
+    sanitize, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
 )
+
+if TYPE_CHECKING:
+    from mailbackup.statistics import ThreadSafeStats
 
 
 # ----------------------------------------------------------------------
@@ -221,7 +224,7 @@ def count_mail_files(root_maildir: Path) -> int:
     return sum(1 for _ in iter_mail_files(root_maildir))
 
 
-def run_extractor(settings: Settings, stats: dict):
+def run_extractor(settings: Settings, stats: ThreadSafeStats | dict):
     """Entry point for extraction stage."""
     maildir = settings.maildir
     attach_dir = settings.attachments_dir
@@ -242,33 +245,34 @@ def run_extractor(settings: Settings, stats: dict):
     total_files = count_mail_files(maildir)
     logger.info(f"Starting extraction. Total email files found: {total_files}")
 
-    processed_count = 0
-    processed_lock = threading.Lock()
-
     status_thread = StatusThread(settings.status_interval, stats)
     status_thread.start()
 
     def do_one(eml: Path):
+        """Process one email file and return whether it was processed."""
         try:
             processed = process_email_file(eml, attach_dir, db_path)
-            return processed, eml
+            return processed
         except Exception as e:
             logger.error(f"Error processing {eml}: {e}", exc_info=True)
-            return False, eml
+            return False
 
     try:
-        with ThreadPoolExecutor(max_workers=settings.max_extract_workers) as ex:
-            futures = [ex.submit(do_one, eml) for eml in iter_mail_files(maildir)]
-            for fut in as_completed(futures):
-                processed_this, eml = fut.result()
-                if processed_this:
-                    with processed_lock:
-                        processed_count += 1
-                    stats["extracted"] = stats.get("extracted", 0) + 1
-                    if processed_count % 250 == 0 or processed_count == total_files:
-                        remaining = total_files - processed_count
-                        logger.info(
-                            f"[Progress] Processed {processed_count}/{total_files} emails ({remaining} remaining)")
+        with create_managed_executor(
+            max_workers=settings.max_extract_workers,
+            name="Extractor",
+            progress_interval=250
+        ) as executor:
+            results = executor.map(do_one, iter_mail_files(maildir))
+            
+            # Count successfully processed emails
+            processed_count = sum(1 for r in results if r.success and r.result)
+            
+            # Update stats in a thread-safe way
+            if isinstance(stats, dict):
+                stats["extracted"] = stats.get("extracted", 0) + processed_count
+            else:
+                stats.increment("extracted", processed_count)
     finally:
         status_thread.stop()
         logger.info(f"Extraction completed: {processed_count}/{total_files} messages processed.")
