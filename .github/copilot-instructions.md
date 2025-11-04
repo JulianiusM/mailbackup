@@ -103,15 +103,62 @@ Maildir → Extractor → SQLite DB + Attachments Dir → Uploader → Remote St
 
 ## Testing Approach
 
-The project has comprehensive test coverage (90%) with 344 tests:
-- **Unit tests**: Test individual modules in isolation with mocked dependencies
-- **Integration tests**: Test end-to-end workflows with temporary directories
-- Use `pytest` with `pytest-mock` for mocking
-- Follow existing patterns in `tests/unit/` and `tests/integration/`
-- Always use `create_stats()` and `StatKey` enum in tests
-- Mock external dependencies (rclone, filesystem, network, subprocess)
-- Test error handling and edge cases
-- Ensure thread-safety for concurrent operations
+The project has comprehensive test coverage (87%+) with 300+ tests organized by **domain**.
+
+### Test Organization
+
+**One test file per module** for both unit and integration tests:
+
+```
+tests/
+├── unit/test_<module>.py        # Unit tests for mailbackup/<module>.py
+└── integration/test_<module>.py # Integration tests for mailbackup/<module>.py
+```
+
+**Examples:**
+- `tests/unit/test_extractor.py` → Unit tests for `mailbackup/extractor.py`
+- `tests/integration/test_extractor.py` → Integration tests for `mailbackup/extractor.py`
+
+### Test Structure Guidelines
+
+1. **Domain-based organization**: All tests for a module go in ONE file per test type
+2. **No coverage files**: Don't create `test_*_coverage.py` files
+3. **Clear separation**: Unit tests in `unit/`, integration tests in `integration/`
+4. **Predictable location**: When working on `mailbackup/foo.py`, tests are in `tests/unit/test_foo.py` and `tests/integration/test_foo.py`
+
+### When Adding Tests
+
+- **For existing module**: Add to `tests/unit/test_<module>.py` or `tests/integration/test_<module>.py`
+- **For new module**: Create both `tests/unit/test_<module>.py` and `tests/integration/test_<module>.py`
+- **Always use**: `create_stats()` and `StatKey` enum, never string-based stats
+- **Mock external dependencies**: rclone, filesystem, network, subprocess
+- **Test error handling** and edge cases
+- **Ensure thread-safety** for concurrent operations
+
+### Test Class Naming
+
+```python
+# Unit tests
+class TestFunctionName:
+    """Unit tests for function_name."""
+
+# Integration tests  
+@pytest.mark.integration
+class TestModuleIntegration:
+    """Integration tests for module."""
+```
+
+### Statistics in Tests
+
+```python
+from mailbackup.statistics import create_stats, StatKey
+
+stats = create_stats()
+stats.increment(StatKey.BACKED_UP, 5)
+assert stats[StatKey.VERIFIED] == 2
+```
+
+See `tests/TEST_STRUCTURE.md` for complete testing guidelines.
 
 ## Development Workflow
 

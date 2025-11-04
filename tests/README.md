@@ -2,37 +2,58 @@
 
 This directory contains unit and integration tests for the mailbackup project.
 
+## Test Organization
+
+**⭐ NEW**: Tests are organized by **domain** with one file per module. See [TEST_STRUCTURE.md](TEST_STRUCTURE.md) for detailed guidelines.
+
+## Quick Start
+
+```bash
+# Install test dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=mailbackup --cov-report=term-missing
+```
+
 ## Test Structure
 
 ```
 tests/
+├── TEST_STRUCTURE.md        # 📖 Detailed test structure guidelines
 ├── conftest.py              # Shared fixtures and test configuration
-├── unit/                    # Unit tests for individual modules
-│   ├── test_config.py       # Tests for configuration loading
-│   ├── test_db.py           # Tests for database operations
-│   ├── test_executor.py     # Tests for parallel executor
-│   ├── test_extractor.py    # Tests for email extraction
-│   ├── test_integrity.py    # Tests for integrity checking
-│   ├── test_logger.py       # Tests for logging setup
-│   ├── test_main.py         # Tests for CLI entry point
-│   ├── test_manifest.py     # Tests for manifest management
-│   ├── test_orchestrator.py # Tests for pipeline orchestration
-│   ├── test_rclone.py       # Tests for rclone wrapper functions
-│   ├── test_rotation.py     # Tests for archive rotation
-│   ├── test_statistics.py   # Tests for statistics tracking
-│   ├── test_uploader.py     # Tests for incremental uploads
-│   └── test_utils.py        # Tests for utility functions
-└── integration/             # Integration tests
-    ├── test_cli.py          # Tests for CLI and pipeline integration
-    ├── test_comprehensive_coverage.py  # Comprehensive integration tests
-    ├── test_final_coverage.py         # Final coverage integration tests
-    ├── test_integrity_integration.py  # Integrity checking integration tests
-    ├── test_interrupt_handling.py     # Interrupt handling tests
-    ├── test_pipeline.py               # Pipeline integration tests
-    ├── test_targeted_coverage.py      # Targeted coverage tests
-    └── test_utils_integration.py      # Utils integration tests
-
+├── unit/                    # Unit tests (one file per module)
+│   ├── test_config.py
+│   ├── test_db.py
+│   ├── test_executor.py
+│   ├── test_extractor.py
+│   ├── test_integrity.py
+│   ├── test_logger.py
+│   ├── test_main.py
+│   ├── test_manifest.py
+│   ├── test_orchestrator.py
+│   ├── test_rclone.py
+│   ├── test_rotation.py
+│   ├── test_statistics.py
+│   ├── test_uploader.py
+│   └── test_utils.py
+└── integration/             # Integration tests (one file per module)
+    ├── test_executor.py
+    ├── test_extractor.py
+    ├── test_integrity.py
+    ├── test_main.py
+    ├── test_manifest.py
+    ├── test_uploader.py
+    └── test_utils.py
 ```
+
+**Key Principle**: One test file per domain/module for both unit and integration tests.
+
+- `tests/unit/test_extractor.py` → Tests for `mailbackup/extractor.py` (isolated)
+- `tests/integration/test_extractor.py` → Tests for `mailbackup/extractor.py` (integrated)
 
 ## Running Tests
 
