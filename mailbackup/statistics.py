@@ -29,52 +29,6 @@ class StatKey(Enum):
     SKIPPED = "Skipped"
     PROCESSED = "Total processed"
     FAILED = "Failed"
-    
-    # Backward compatibility aliases
-    UPLOADED = "Backed up"  # Alias for BACKED_UP
-
-
-# String to StatKey mapping for backward compatibility
-_STRING_TO_STATKEY = {
-    "fetched": StatKey.FETCHED,
-    "extracted": StatKey.EXTRACTED,
-    "backed up": StatKey.BACKED_UP,
-    "backed_up": StatKey.BACKED_UP,
-    "uploaded": StatKey.BACKED_UP,  # Backward compatibility
-    "archived": StatKey.ARCHIVED,
-    "verified": StatKey.VERIFIED,
-    "repaired": StatKey.REPAIRED,
-    "skipped": StatKey.SKIPPED,
-    "processed": StatKey.PROCESSED,
-    "total processed": StatKey.PROCESSED,
-    "total_processed": StatKey.PROCESSED,
-    "failed": StatKey.FAILED,
-}
-
-
-def _normalize_key(key: StatKey | str) -> StatKey:
-    """
-    Normalize a key to StatKey enum.
-    
-    Supports both StatKey enum and string keys for backward compatibility.
-    
-    Args:
-        key: StatKey enum or string key
-        
-    Returns:
-        StatKey enum
-        
-    Raises:
-        KeyError: If string key is not recognized
-    """
-    if isinstance(key, StatKey):
-        return key
-    if isinstance(key, str):
-        normalized = key.lower().replace("-", "_")
-        if normalized in _STRING_TO_STATKEY:
-            return _STRING_TO_STATKEY[normalized]
-        raise KeyError(f"Unknown statistic key: {key}")
-    raise TypeError(f"Key must be StatKey or str, got {type(key)}")
 
 
 class ThreadSafeStats:
@@ -88,82 +42,61 @@ class ThreadSafeStats:
 
     def __init__(self):
         """Initialize with empty counters and a lock."""
-        self._counters: Dict[StatKey | str, int] = {}
+        self._counters: Dict[StatKey, int] = {}
         self._lock = threading.Lock()
 
-    def increment(self, key: StatKey | str, value: int = 1) -> None:
+    def increment(self, key: StatKey, value: int = 1) -> None:
         """
         Atomically increment a counter.
         
         Args:
-            key: Counter name (StatKey enum or string like 'uploaded', 'extracted')
+            key: Counter name (e.g., 'uploaded', 'extracted')
             value: Amount to increment by (default 1)
         """
-        # Normalize known keys, but allow arbitrary string keys for flexibility
-        if isinstance(key, str) and key.lower().replace("-", "_") in _STRING_TO_STATKEY:
-            key = _normalize_key(key)
         with self._lock:
             self._counters[key] = self._counters.get(key, 0) + value
 
-    def set(self, key: StatKey | str, value: int) -> None:
+    def set(self, key: StatKey, value: int) -> None:
         """
         Atomically set a counter value.
         
         Args:
-            key: Counter name (StatKey enum or string)
+            key: Counter name
             value: Value to set
         """
-        # Normalize known keys, but allow arbitrary string keys for flexibility
-        if isinstance(key, str) and key.lower().replace("-", "_") in _STRING_TO_STATKEY:
-            key = _normalize_key(key)
         with self._lock:
             self._counters[key] = value
 
-    def get(self, key: StatKey | str, default: int = 0) -> int:
+    def get(self, key: StatKey, default: int = 0) -> int:
         """
         Thread-safe get counter value.
         
         Args:
-            key: Counter name (StatKey enum or string)
+            key: Counter name
             default: Default value if key doesn't exist
             
         Returns:
             Counter value or default
         """
-        # Normalize known keys, but allow arbitrary string keys for flexibility
-        if isinstance(key, str) and key.lower().replace("-", "_") in _STRING_TO_STATKEY:
-            key = _normalize_key(key)
         with self._lock:
             return self._counters.get(key, default)
 
-    def get_all(self) -> Dict[str, int]:
+    def get_all(self) -> Dict[StatKey, int]:
         """
         Get a snapshot of all counters.
         
         Returns:
-            Dictionary copy of all counters with string keys for compatibility
+            Dictionary copy of all counters
         """
         with self._lock:
-            # Convert StatKey enums to strings for backward compatibility
-            result = {}
-            for key, value in self._counters.items():
-                if isinstance(key, StatKey):
-                    # Use lowercase string representation for backward compatibility
-                    # Map BACKED_UP to "uploaded" for old tests
-                    if key == StatKey.BACKED_UP:
-                        result["uploaded"] = value
-                    else:
-                        result[key.value.lower()] = value
-                else:
-                    result[key] = value
-            return result
+            return self._counters.copy()
 
-    def to_dict(self) -> Dict[str, int]:
+    def to_dict(self) -> Dict[StatKey, int]:
         """
         Convert to plain dictionary (for compatibility).
         
         Returns:
-            Dictionary copy of all counters with string keys
+            Dictionary copy of all counters
         """
         return self.get_all()
 
@@ -172,11 +105,11 @@ class ThreadSafeStats:
         with self._lock:
             self._counters.clear()
 
-    def __getitem__(self, key: StatKey | str) -> int:
+    def __getitem__(self, key: StatKey) -> int:
         """Support dict-like access: stats['uploaded']"""
         return self.get(key, 0)
 
-    def __setitem__(self, key: StatKey | str, value: int) -> None:
+    def __setitem__(self, key: StatKey, value: int) -> None:
         """Support dict-like assignment: stats['uploaded'] = 5"""
         self.set(key, value)
 
@@ -189,21 +122,8 @@ class ThreadSafeStats:
         """
         snapshot = self.get_all()
         txt = f" | "
-        # Define display order and names
-        display_keys = [
-            ("fetched", "Fetched"),
-            ("extracted", "Extracted"),
-            ("uploaded", "Uploaded"),  # Use "Uploaded" instead of "Backed up"
-            ("archived", "Archived"),
-            ("verified", "Verified"),
-            ("repaired", "Repaired"),
-            ("skipped", "Skipped"),
-            ("total processed", "Total processed"),
-            ("failed", "Failed"),
-        ]
-        for key, label in display_keys:
-            value = snapshot.get(key, 0)
-            txt += f"{label}: {value} | "
+        for stat in StatKey:
+            txt += f"{stat.value}: {snapshot.get(stat, 0)} | "
         return txt
 
 
@@ -263,71 +183,18 @@ class StatusThread:
         return self.counters.format_status()
 
 
-def log_status(stats: ThreadSafeStats | dict, stage: str = ""):
+def log_status(stats: ThreadSafeStats, stage: str = ""):
     """
     Log current statistics status.
     
     Args:
-        stats: Statistics counters (ThreadSafeStats or dict)
+        stats: Statistics counters
         stage: Optional stage name to include in log message
     """
     logger = get_logger(__name__)
 
     prefix = f"[{stage}] " if stage else ""
-    # Try to use status level if available, otherwise use info
-    fn = getattr(logger, "status", None)
-    
-    # Format the status string
-    if isinstance(stats, ThreadSafeStats):
-        status_str = stats.format_status()
-    else:
-        status_str = format_stats_dict(stats)
-    
-    if callable(fn):
-        fn(prefix + status_str)
-    else:
-        logger.info(prefix + status_str)
-
-
-def format_stats_dict(stats: dict | ThreadSafeStats) -> str:
-    """
-    Format statistics dictionary as a status string.
-    
-    Args:
-        stats: Statistics dictionary or ThreadSafeStats object
-        
-    Returns:
-        Formatted status string
-    """
-    if isinstance(stats, ThreadSafeStats):
-        return stats.format_status()
-    
-    # For plain dict, format manually
-    txt = " | "
-    display_keys = [
-        ("fetched", "Fetched"),
-        ("extracted", "Extracted"),
-        ("uploaded", "Uploaded"),
-        ("archived", "Archived"),
-        ("verified", "Verified"),
-        ("repaired", "Repaired"),
-        ("skipped", "Skipped"),
-        ("total processed", "Total processed"),
-        ("total_processed", "Total processed"),
-        ("processed", "Total processed"),
-        ("failed", "Failed"),
-    ]
-    
-    # Track which keys we've already added
-    added = set()
-    for key, label in display_keys:
-        if label in added:
-            continue
-        value = stats.get(key, 0)
-        if value or key in ["fetched", "extracted", "uploaded", "archived", "verified", "repaired", "skipped", "failed"]:
-            txt += f"{label}: {value} | "
-            added.add(label)
-    return txt
+    logger.status(prefix + stats.format_status())
 
 
 def create_stats() -> ThreadSafeStats:
