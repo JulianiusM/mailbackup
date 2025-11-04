@@ -297,7 +297,8 @@ class ManagedThreadPoolExecutor:
                     )
 
                 results.append(task_res)
-                increment_callback(task_res)
+                if increment_callback is not None:
+                    increment_callback(task_res)
 
                 with self._lock:
                     self._completed += 1
