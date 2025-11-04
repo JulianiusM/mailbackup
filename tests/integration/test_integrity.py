@@ -9,7 +9,6 @@ with mocked rclone commands and actual database/filesystem operations.
 import json
 from mailbackup.statistics import StatKey, create_stats
 import shutil
-from mailbackup.statistics import StatKey, create_stats
 from unittest.mock import Mock
 
 import pytest
