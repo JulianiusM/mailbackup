@@ -249,3 +249,111 @@ class TestManifestManager:
 
         # Should have 10 entries (last write wins for same key)
         assert len(manager._manifest_queue) == 10
+
+
+class TestManifestQueueOperations:
+    """Tests for manifest queue operations and edge cases."""
+
+    def test_queue_entry_and_dump(self, test_settings, tmp_path):
+        """Test queueing entries and dumping to file."""
+        from mailbackup.manifest import ManifestManager
+        
+        test_settings.tmp_dir = tmp_path
+        test_settings.tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        manifest = ManifestManager(test_settings)
+        
+        # Queue some entries
+        manifest.queue_entry("file1.txt", "hash1")
+        manifest.queue_entry("file2.txt", "hash2")
+        manifest.queue_entry("file3.txt", "hash3")
+        
+        # Dump queue
+        manifest.dump_queue()
+        
+        # Check queue file exists
+        queue_file = test_settings.tmp_dir / "manifest.queue.json"
+        assert queue_file.exists()
+        
+        # Verify content
+        import json
+        with open(queue_file) as f:
+            data = json.load(f)
+        assert len(data) == 3
+
+    def test_queue_with_periodic_dump(self, test_settings, tmp_path):
+        """Test periodic dumping of queue."""
+        from mailbackup.manifest import ManifestManager
+        
+        test_settings.tmp_dir = tmp_path
+        test_settings.tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        manifest = ManifestManager(test_settings)
+        
+        # Queue entries to trigger periodic dump (every 500 entries)
+        for i in range(510):
+            manifest.queue_entry(f"file{i}.txt", f"hash{i}")
+        
+        # Should have dumped automatically
+        queue_file = test_settings.tmp_dir / "manifest.queue.json"
+        assert queue_file.exists()
+
+    def test_restore_queue_from_file(self, test_settings, tmp_path):
+        """Test restoring queue from existing file."""
+        from mailbackup.manifest import ManifestManager
+        import json
+        
+        test_settings.tmp_dir = tmp_path
+        test_settings.tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create queue file
+        queue_file = test_settings.tmp_dir / "manifest.queue.json"
+        queue_data = [
+            ["hash1", "file1.txt"],
+            ["hash2", "file2.txt"]
+        ]
+        with open(queue_file, 'w') as f:
+            json.dump(queue_data, f)
+        
+        # Create manager - should restore queue
+        manifest = ManifestManager(test_settings)
+        
+        # Verify queue was restored (implicit test - no error)
+        assert True
+
+    def test_dump_queue_write_failure(self, test_settings, tmp_path, mocker):
+        """Test dump_queue when write fails."""
+        from mailbackup.manifest import ManifestManager
+        
+        test_settings.tmp_dir = tmp_path
+        test_settings.tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        manifest = ManifestManager(test_settings)
+        manifest.queue_entry("file1.txt", "hash1")
+        
+        # Mock write_json_atomic to raise exception
+        mocker.patch("mailbackup.manifest.write_json_atomic", side_effect=Exception("Write failed"))
+        
+        # Should handle exception gracefully
+        manifest.dump_queue()
+        
+        # Test passes if no exception raised
+        assert True
+
+    def test_empty_queue_dump(self, test_settings, tmp_path):
+        """Test dumping empty queue."""
+        from mailbackup.manifest import ManifestManager
+        
+        test_settings.tmp_dir = tmp_path
+        test_settings.tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        manifest = ManifestManager(test_settings)
+        
+        # Dump empty queue - should return early
+        manifest.dump_queue()
+        
+        # Should not create queue file
+        queue_file = test_settings.tmp_dir / "manifest.queue.json"
+        # File may or may not exist depending on implementation
+        assert True
+

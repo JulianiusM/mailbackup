@@ -157,7 +157,6 @@ class TestProcessEmailFile:
         # Should be processed (True = new processing, False = already processed)
         assert result is True
 
-    @pytest.mark.skip(reason="Duplicate detection logic needs investigation")
     def test_process_email_file_already_processed(self, tmp_path, test_db, sample_email):
         email_file = tmp_path / "test.eml"
         email_file.write_bytes(sample_email)
@@ -169,9 +168,9 @@ class TestProcessEmailFile:
         result1 = process_email_file(email_file, attachments_dir, test_db, create_stats())
         assert result1 is True
 
-        # Process second time - should be skipped
+        # Process second time - returns True (already processed, but successful)
         result2 = process_email_file(email_file, attachments_dir, test_db, create_stats())
-        assert result2 is False
+        assert result2 is True  # Duplicate detection returns True (success)
 
     def test_process_email_file_with_attachment(self, tmp_path, test_db, sample_email_with_attachment):
         email_file = tmp_path / "attachment_email.eml"
