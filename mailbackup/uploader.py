@@ -14,12 +14,11 @@ Incremental upload of unsynced emails:
 from __future__ import annotations
 
 import shutil
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from mailbackup import db
 from mailbackup.config import Settings
+from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
 from mailbackup.manifest import ManifestManager
 from mailbackup.rclone import rclone_deletefile
@@ -45,7 +44,7 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
     - upload attachments and info.json (best-effort atomic copy)
     - mark the DB row as synced and enqueue a manifest entry
 
-    Uses a ThreadPoolExecutor to parallelize up to settings.max_upload_workers.
+    Uses ManagedThreadPoolExecutor for proper interrupt handling.
     Updates the supplied stats dict (uploaded/skipped).
     """
     # Use the configured logging factory rather than a passed-in logger instance
@@ -54,8 +53,6 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
     rows = db.fetch_unsynced(settings.db_path)
     total_to_upload = len(rows)
     logger.info(f"Starting incremental upload for {total_to_upload} unsynced emails...")
-
-    stats_lock = threading.Lock()
 
     def _process_row(row) -> bool:
         # returns True if uploaded, False if skipped/failure
@@ -146,8 +143,7 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
 
         if not email_uploaded:
             logger.debug(f"Email not uploaded: {remote_email}")
-            with stats_lock:
-                stats["skipped"] = stats.get("skipped", 0) + 1
+            stats["skipped"] = stats.get("skipped", 0) + 1
             shutil.rmtree(docset_dir, ignore_errors=True)
             return False
 
@@ -173,29 +169,24 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
         except Exception as e:
             logger.warning(f"Failed to persist manifest queue: {e}")
 
-        with stats_lock:
-            stats["uploaded"] = stats.get("uploaded", 0) + 1
+        stats["uploaded"] = stats.get("uploaded", 0) + 1
 
         shutil.rmtree(docset_dir, ignore_errors=True)
         return True
 
-    completed = 0
     if total_to_upload > 0:
         max_workers = max(1, int(settings.max_upload_workers))
         logger.info(f"Uploading with up to {max_workers} parallel workers...")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(_process_row, row) for row in rows]
-            for fut in as_completed(futures):
-                try:
-                    res = fut.result()
-                    if res:
-                        completed += 1
-                        if completed % 25 == 0 or completed == total_to_upload:
-                            remaining = total_to_upload - completed
-                            logger.info(
-                                f"[Progress] Uploaded {completed}/{total_to_upload} emails ({remaining} remaining)")
-                except Exception as e:
-                    logger.error(f"Failed to upload {fut}: {e}")
+        
+        with create_managed_executor(
+            max_workers=max_workers,
+            name="Uploader",
+            progress_interval=25
+        ) as executor:
+            results = executor.map(_process_row, rows)
+            
+            # Count successful uploads
+            completed = sum(1 for r in results if r.success and r.result)
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()

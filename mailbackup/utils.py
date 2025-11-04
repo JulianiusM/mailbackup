@@ -27,7 +27,6 @@ import subprocess
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -38,6 +37,7 @@ import unicodedata
 if TYPE_CHECKING:
     from mailbackup.config import Settings
 
+from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
 from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
@@ -465,21 +465,21 @@ def remote_hash(settings: Settings, file_pattern: str = '*', remote_path: str = 
                     silent_logging
                     )
 
-        with ThreadPoolExecutor(max_workers=settings.max_hash_threads) as executor:
-            futures = {
-                executor.submit(compute_remote_sha256, settings, rp): rp for rp in relpaths
-            }
-            for i, fut in enumerate(as_completed(futures), start=1):
-                rp = futures[fut]
-                try:
-                    sha = fut.result()
-                    if sha:
-                        remote_map[rp] = sha
-                except Exception as e:
-                    _logger.error(f"Hash computation failed for {rp}: {e}")
-
-                if i % 25 == 0 or i == len(futures):
-                    silent_info(_logger, f"[Hashing] {i}/{len(futures)} remote files processed...", silent_logging)
+        # Use managed executor for better interrupt handling
+        def compute_hash_for_path(rp):
+            return compute_remote_sha256(settings, rp)
+        
+        with create_managed_executor(
+            max_workers=settings.max_hash_threads,
+            name="RemoteHasher",
+            progress_interval=25
+        ) as executor:
+            results = executor.map(compute_hash_for_path, relpaths)
+            
+            # Build the remote map from successful results
+            for result in results:
+                if result.success and result.result:
+                    remote_map[result.item] = result.result
 
         silent_info(_logger, f"Computed SHA256 hashes for {len(remote_map)} files via streaming fallback.",
                     silent_logging)
