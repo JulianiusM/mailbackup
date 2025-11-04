@@ -5,11 +5,14 @@ Focuses on extractor and integrity modules.
 """
 
 import email
+from mailbackup.statistics import StatKey, create_stats
 import shutil
+from mailbackup.statistics import StatKey, create_stats
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup import db
 from mailbackup.extractor import (
@@ -214,7 +217,7 @@ class TestExtractorTargeted:
         stats = {"extracted": 0}
         run_extractor(test_settings, stats)
 
-        assert stats["extracted"] == 3
+        assert stats[StatKey.EXTRACTED] == 3
 
 
 @pytest.mark.integration
@@ -283,7 +286,7 @@ class TestIntegrityTargeted:
 
         integrity_check(test_settings, manifest, stats)
 
-        assert stats["verified"] == 1
+        assert stats[StatKey.VERIFIED] == 1
 
     def test_integrity_check_skip_no_remote_path(self, test_settings, tmp_path, mocker):
         """Test integrity_check skips entries without remote_path."""
@@ -314,4 +317,4 @@ class TestIntegrityTargeted:
 
         integrity_check(test_settings, manifest, stats)
 
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0

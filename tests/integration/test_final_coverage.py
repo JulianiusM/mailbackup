@@ -5,10 +5,12 @@ Focuses on uploader and manifest modules.
 """
 
 import json
+from mailbackup.statistics import StatKey, create_stats
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup.manifest import ManifestManager
 from mailbackup.uploader import incremental_upload
@@ -52,11 +54,11 @@ class TestUploaderFinal:
         mocker.patch("mailbackup.uploader.remote_hash", side_effect=mock_remote_hash)
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         incremental_upload(test_settings, manifest, stats)
 
-        assert stats["uploaded"] >= 0  # May be 0 if hash verification fails
+        assert stats[StatKey.BACKED_UP] >= 0  # May be 0 if hash verification fails
 
     def test_incremental_upload_with_attachments(self, test_settings, mocker, tmp_path):
         """Test upload with attachments."""
@@ -97,11 +99,11 @@ class TestUploaderFinal:
         mocker.patch("mailbackup.uploader.remote_hash", side_effect=mock_remote_hash)
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         incremental_upload(test_settings, manifest, stats)
 
-        assert stats["uploaded"] >= 0
+        assert stats[StatKey.BACKED_UP] >= 0
 
 
 @pytest.mark.integration

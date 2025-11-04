@@ -7,10 +7,13 @@ with mocked rclone commands and actual database/filesystem operations.
 """
 
 import json
+from mailbackup.statistics import StatKey, create_stats
 import shutil
+from mailbackup.statistics import StatKey, create_stats
 from unittest.mock import Mock
 
 import pytest
+from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup.integrity import integrity_check, repair_remote, rebuild_docset
 from mailbackup.manifest import ManifestManager
@@ -69,7 +72,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert
-        assert stats["verified"] == 2
+        assert stats[StatKey.VERIFIED] == 2
         assert stats.get("repaired", 0) == 0
         manifest.upload_manifest_if_needed.assert_called_once()
 
@@ -107,7 +110,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert
-        assert stats["verified"] == 1
+        assert stats[StatKey.VERIFIED] == 1
         assert stats.get("repaired", 0) == 0
 
     def test_integrity_check_disabled(self, test_settings, mocker):
@@ -121,7 +124,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert - should exit early
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
 
     def test_integrity_check_missing_remote_file(self, test_settings, mocker):
         """Test integrity check detects missing remote files."""
@@ -174,7 +177,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert - should verify both but not repair
-        assert stats["verified"] == 2
+        assert stats[StatKey.VERIFIED] == 2
         assert stats.get("repaired", 0) == 0
 
     def test_integrity_check_hash_mismatch(self, test_settings, mocker):
@@ -213,7 +216,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert
-        assert stats["verified"] == 1
+        assert stats[StatKey.VERIFIED] == 1
         assert stats.get("repaired", 0) == 0
 
     def test_integrity_check_with_repair_missing_file(self, test_settings, mocker):
@@ -263,8 +266,8 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert
-        assert stats["verified"] == 1
-        assert stats["repaired"] == 1
+        assert stats[StatKey.VERIFIED] == 1
+        assert stats[StatKey.REPAIRED] == 1
         manifest.queue_entry.assert_called_once()
         mock_update_path.assert_called_once()
 
@@ -314,8 +317,8 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert
-        assert stats["verified"] == 1
-        assert stats["repaired"] == 1
+        assert stats[StatKey.VERIFIED] == 1
+        assert stats[StatKey.REPAIRED] == 1
 
     def test_integrity_check_no_remote_hashsum_available(self, test_settings, mocker):
         """Test integrity check when both manifest and hashsum are unavailable."""
@@ -334,7 +337,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert - should exit early
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
         assert stats.get("repaired", 0) == 0
 
     def test_integrity_check_skips_empty_remote_path(self, test_settings, mocker):
@@ -369,7 +372,7 @@ class TestIntegrityCheckIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Assert - should not count as verified since remote_path is empty
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
 
 
 @pytest.mark.integration
@@ -414,7 +417,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats["repaired"] == 1
+        assert stats[StatKey.REPAIRED] == 1
         manifest.queue_entry.assert_called_once()
         mock_update_path.assert_called_once()
 
@@ -458,7 +461,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats["repaired"] == 1
+        assert stats[StatKey.REPAIRED] == 1
 
     def test_repair_remote_upload_failure(self, test_settings, mocker):
         """Test repair handles upload failures gracefully."""
@@ -497,7 +500,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert - repaired counter still increments (tracks attempts)
-        assert stats["repaired"] == 1
+        assert stats[StatKey.REPAIRED] == 1
         # But DB should not be updated
         mock_update_path.assert_not_called()
         manifest.queue_entry.assert_not_called()
@@ -533,7 +536,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert - repair is attempted even without local file
-        assert stats["repaired"] == 1
+        assert stats[StatKey.REPAIRED] == 1
 
     def test_repair_remote_missing_local_attachments(self, test_settings, mocker):
         """Test repair when local attachments are missing."""
@@ -571,7 +574,7 @@ class TestRepairRemoteIntegration:
         repair_remote(test_settings, "missing", row, manifest, stats)
 
         # Assert
-        assert stats["repaired"] == 1
+        assert stats[StatKey.REPAIRED] == 1
 
 
 @pytest.mark.integration

@@ -5,13 +5,18 @@ Focuses on real integration scenarios without mocking internal code bugs.
 """
 
 import json
+from mailbackup.statistics import StatKey, create_stats
 import signal
+from mailbackup.statistics import StatKey, create_stats
 import subprocess
+from mailbackup.statistics import StatKey, create_stats
 import time
+from mailbackup.statistics import StatKey, create_stats
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup.extractor import (
     decode_mime_header,
@@ -302,7 +307,7 @@ class TestExtractorIntegration:
 
         run_extractor(test_settings, stats)
 
-        assert stats["extracted"] == 0
+        assert stats[StatKey.EXTRACTED] == 0
 
 
 @pytest.mark.integration
@@ -342,7 +347,7 @@ class TestIntegrityIntegration:
 
         integrity_check(test_settings, manifest, stats)
 
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
 
     def test_integrity_check_no_remote_hash(self, test_settings, mocker):
         """Test integrity_check when remote_hash returns None."""
@@ -357,7 +362,7 @@ class TestIntegrityIntegration:
 
         integrity_check(test_settings, manifest, stats)
 
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
 
 
 @pytest.mark.integration

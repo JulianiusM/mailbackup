@@ -5,9 +5,11 @@ Tests the actual integration with mocked rclone commands.
 """
 
 import json
+from mailbackup.statistics import StatKey, create_stats
 from unittest.mock import Mock
 
 import pytest
+from mailbackup.statistics import StatKey, create_stats
 
 from mailbackup.integrity import integrity_check
 from mailbackup.manifest import ManifestManager
@@ -66,7 +68,7 @@ class TestUploaderIntegration:
 
         incremental_upload(test_settings, manifest, stats)
 
-        assert stats["uploaded"] == 1
+        assert stats[StatKey.BACKED_UP] == 1
         mock_mark_synced.assert_called_once()
         manifest.queue_entry.assert_called()
 
@@ -122,7 +124,7 @@ class TestUploaderIntegration:
 
         incremental_upload(test_settings, manifest, stats)
 
-        assert stats["uploaded"] == 1
+        assert stats[StatKey.BACKED_UP] == 1
 
 
 @pytest.mark.integration
@@ -179,7 +181,7 @@ class TestIntegrityIntegration:
 
         integrity_check(test_settings, manifest, stats)
 
-        assert stats["verified"] == 1
+        assert stats[StatKey.VERIFIED] == 1
 
     def test_integrity_check_no_manifest_integration(self, test_settings, mocker):
         """Test integrity check when manifest doesn't exist."""
@@ -197,4 +199,4 @@ class TestIntegrityIntegration:
         integrity_check(test_settings, manifest, stats)
 
         # Should exit early when no remote hash available
-        assert stats["verified"] == 0
+        assert stats[StatKey.VERIFIED] == 0
