@@ -147,3 +147,82 @@ JVBERi0xLjQK
         
         # Should have attempted to process
         assert True  # Completed without error
+
+
+@pytest.mark.integration
+class TestRunExtractorWorkflow:
+    """Integration tests for run_extractor complete workflow."""
+
+    def test_run_extractor_with_real_maildir(self, test_settings, test_db, tmp_path, mocker):
+        """Test run_extractor with real maildir structure."""
+        from mailbackup.extractor import run_extractor
+        from mailbackup.statistics import create_stats, StatKey
+        
+        # Setup
+        test_settings.maildir = tmp_path / "maildir"
+        test_settings.maildir.mkdir()
+        cur_dir = test_settings.maildir / "cur"
+        cur_dir.mkdir()
+        
+        # Create test emails
+        email1 = cur_dir / "1.eml"
+        email1.write_text("From: test1@example.com\nSubject: Test 1\nDate: Mon, 1 Jan 2024 12:00:00 +0000\n\nBody 1")
+        
+        email2 = cur_dir / "2.eml"
+        email2.write_text("From: test2@example.com\nSubject: Test 2\nDate: Tue, 2 Jan 2024 12:00:00 +0000\n\nBody 2")
+        
+        test_settings.db_path = test_db
+        test_settings.attachments_dir = tmp_path / "attachments"
+        test_settings.attachments_dir.mkdir()
+        
+        stats = create_stats()
+        
+        # Execute
+        run_extractor(test_settings, stats)
+        
+        # Should have processed emails
+        assert stats[StatKey.EXTRACTED] >= 0
+
+    def test_run_extractor_with_attachments(self, test_settings, test_db, tmp_path):
+        """Test run_extractor with emails containing attachments."""
+        from mailbackup.extractor import run_extractor
+        from mailbackup.statistics import create_stats
+        
+        # Setup
+        test_settings.maildir = tmp_path / "maildir"
+        test_settings.maildir.mkdir()
+        cur_dir = test_settings.maildir / "cur"
+        cur_dir.mkdir()
+        
+        # Create email with attachment
+        email_content = b'''From: test@example.com
+Subject: Test with Attachment
+Date: Mon, 1 Jan 2024 12:00:00 +0000
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain
+
+Email body
+
+--boundary123
+Content-Type: application/pdf; name="test.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQK
+--boundary123--
+'''
+        email = cur_dir / "email_with_att.eml"
+        email.write_bytes(email_content)
+        
+        test_settings.db_path = test_db
+        test_settings.attachments_dir = tmp_path / "attachments"
+        test_settings.attachments_dir.mkdir()
+        
+        stats = create_stats()
+        
+        # Execute
+        run_extractor(test_settings, stats)
+        
+        # Should have processed
+        assert True

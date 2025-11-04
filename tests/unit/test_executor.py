@@ -287,3 +287,5 @@ class TestCreateManagedExecutor:
         assert executor.max_workers == 2
         assert executor.name == "Worker"
         assert executor.progress_interval == 25
+
+
