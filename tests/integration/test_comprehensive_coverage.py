@@ -23,6 +23,7 @@ from mailbackup.integrity import (
     integrity_check,
 )
 from mailbackup.manifest import ManifestManager
+from mailbackup.statistics import StatusThread
 from mailbackup.utils import (
     run_streaming,
     atomic_upload_file,
@@ -31,7 +32,6 @@ from mailbackup.utils import (
     working_dir,
     ensure_dirs,
     install_signal_handlers,
-    StatusThread,
     run_cmd,
     atomic_write_text,
     parse_mail_date,

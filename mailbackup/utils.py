@@ -39,9 +39,8 @@ from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
 from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
-# Import StatusThread from statistics module for backward compatibility
-from mailbackup.statistics import StatusThread
 
+# Import StatusThread from statistics module for backward compatibility
 
 
 def sanitize(s: Optional[str]) -> str:
@@ -430,14 +429,14 @@ def remote_hash(settings: Settings, file_pattern: str = '*', remote_path: str = 
         # Use managed executor for better interrupt handling
         def compute_hash_for_path(rp):
             return compute_remote_sha256(settings, rp)
-        
+
         with create_managed_executor(
-            max_workers=settings.max_hash_threads,
-            name="RemoteHasher",
-            progress_interval=25
+                max_workers=settings.max_hash_threads,
+                name="RemoteHasher",
+                progress_interval=25
         ) as executor:
             results = executor.map(compute_hash_for_path, relpaths)
-            
+
             # Build the remote map from successful results
             for result in results:
                 if result.success and result.result:

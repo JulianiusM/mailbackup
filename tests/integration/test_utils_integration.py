@@ -13,6 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from mailbackup.statistics import StatusThread
 from mailbackup.utils import (
     run_streaming,
     atomic_upload_file,
@@ -21,7 +22,6 @@ from mailbackup.utils import (
     working_dir,
     ensure_dirs,
     install_signal_handlers,
-    StatusThread,
 )
 
 

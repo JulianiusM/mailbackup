@@ -60,22 +60,6 @@ class TestCLIArgumentParsing:
         args = parser.parse_args(["fetch", "--config", "/path/to/config.toml"])
         assert args.config == Path("/path/to/config.toml")
 
-    def test_parser_legacy_actions(self):
-        parser = build_parser()
-
-        # Test legacy aliases
-        args = parser.parse_args(["extract"])
-        assert args.action == "extract"
-
-        args = parser.parse_args(["upload"])
-        assert args.action == "upload"
-
-        args = parser.parse_args(["rotate"])
-        assert args.action == "rotate"
-
-        args = parser.parse_args(["verify"])
-        assert args.action == "verify"
-
 
 class TestCLIExecution:
     """Tests for CLI execution via subprocess."""

@@ -3,11 +3,10 @@
 Shared pytest fixtures and configuration for mailbackup tests.
 """
 
-import pytest
 import sys
-import tempfile
-import sqlite3
 from pathlib import Path
+
+import pytest
 
 # Ensure parent directory is in path for package imports
 parent_dir = Path(__file__).parent.parent.parent
@@ -31,17 +30,17 @@ def sample_maildir(tmp_path):
     """Create a sample maildir structure for testing."""
     maildir = tmp_path / "maildir"
     maildir.mkdir()
-    
+
     # Create some sample folders
     inbox = maildir / "INBOX" / "cur"
     inbox.mkdir(parents=True)
-    
+
     sent = maildir / "Sent" / "cur"
     sent.mkdir(parents=True)
-    
+
     spam = maildir / "Spam" / "cur"
     spam.mkdir(parents=True)
-    
+
     return maildir
 
 

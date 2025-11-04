@@ -14,7 +14,6 @@ Integrity check and auto-repair:
 from __future__ import annotations
 
 import datetime
-import logging
 import shutil
 from pathlib import Path
 
@@ -23,6 +22,7 @@ from mailbackup.config import Settings
 from mailbackup.logger import get_logger
 from mailbackup.manifest import ManifestManager, load_manifest_csv
 from mailbackup.rclone import rclone_copyto
+from mailbackup.statistics import ThreadSafeStats, StatKey
 from mailbackup.utils import (
     atomic_upload_file,
     safe_write_json,
@@ -88,8 +88,8 @@ def rebuild_docset(settings: Settings, year: int, folder: str, row) -> Path:
     return ds
 
 
-def repair_remote(settings: Settings, reason: str, row, logger: logging.Logger, manifest: ManifestManager,
-                  stats: dict) -> None:
+def repair_remote(settings: Settings, reason: str, row, manifest: ManifestManager,
+                  stats: ThreadSafeStats) -> None:
     """
     Attempt to repair a missing or mismatched remote document set for a DB row.
 
@@ -146,16 +146,15 @@ def repair_remote(settings: Settings, reason: str, row, logger: logging.Logger, 
         # use db helper to update remote_path
         db.update_remote_path(settings.db_path, hash_, new_remote_path)
         logger.info(f"Database remote_path updated for {hash_} → {new_remote_path}")
+        stats.increment(StatKey.REPAIRED)
     else:
         logger.error(f"Repair upload failed for {hash_}; DB not updated.")
+        stats.increment(StatKey.FAILED)
 
     shutil.rmtree(ds, ignore_errors=True)
 
-    stats["repaired"] = stats.get("repaired", 0) + 1
-    logger.warning(f"Repaired {stats['repaired']} corrupted entries so far.")
 
-
-def integrity_check(settings: Settings, manifest: ManifestManager, stats: dict) -> None:
+def integrity_check(settings: Settings, manifest: ManifestManager, stats: ThreadSafeStats) -> None:
     logger = get_logger(__name__)
     if not settings.verify_integrity:
         logger.info("Integrity verification disabled (verify_integrity=False).")
@@ -204,33 +203,29 @@ def integrity_check(settings: Settings, manifest: ManifestManager, stats: dict) 
             continue
 
         rem_hash = remote_map.get(dremotepath, "missing")
-        if rem_hash == "missing":
-            missing += 1
-            logger.warning(f"Missing on remote: {dremotepath}")
-            if settings.repair_on_failure:
-                repair_remote(settings, "missing", row, logger, manifest, stats)
-        else:
-            if dhashlocal and rem_hash != dhashlocal:
-                mismatch += 1
-                logger.warning(f"Hash mismatch for {dremotepath}")
+        try:
+            if rem_hash == "missing":
+                missing += 1
+                logger.warning(f"Missing on remote: {dremotepath}")
                 if settings.repair_on_failure:
-                    repair_remote(settings, "mismatch", row, logger, manifest, stats)
+                    repair_remote(settings, "missing", row, manifest, stats)
+            else:
+                if dhashlocal and rem_hash != dhashlocal:
+                    mismatch += 1
+                    logger.warning(f"Hash mismatch for {dremotepath}")
+                    if settings.repair_on_failure:
+                        repair_remote(settings, "mismatch", row, manifest, stats)
 
-        stats["verified"] = stats.get("verified", 0) + 1
+            stats.increment(StatKey.VERIFIED)
+        except Exception as e:
+            logger.error(f"Failed to verify email {row['hash']}: {e}")
+            stats.increment(StatKey.FAILED)
+
         if i % 100 == 0 or i == total:
             remaining = total - i
             logger.info(f"[Progress] Verified {i}/{total} entries ({remaining} remaining)")
 
     logger.info(f"Verification result: missing={missing}, mismatched={mismatch}")
-    logger.info(
-        "[STATUS] Uploaded: {u} | Archived: {a} | Verified: {v} | Repaired: {r} | Skipped: {s}".format(
-            u=stats.get("uploaded", 0),
-            a=stats.get("archived", 0),
-            v=stats.get("verified", 0),
-            r=stats.get("repaired", 0),
-            s=stats.get("skipped", 0),
-        )
-    )
 
     # upload updated manifest after repairs
     manifest.upload_manifest_if_needed()

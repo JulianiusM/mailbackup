@@ -16,19 +16,16 @@ from __future__ import annotations
 import email
 from email.header import decode_header, make_header
 from pathlib import Path
-from typing import Iterator, TYPE_CHECKING
+from typing import Iterator
 
 from mailbackup import db
 from mailbackup.config import Settings
 from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
-from mailbackup.statistics import StatusThread
+from mailbackup.statistics import ThreadSafeStats, create_increment_callback, StatKey
 from mailbackup.utils import (
     sanitize, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
 )
-
-if TYPE_CHECKING:
-    from mailbackup.statistics import ThreadSafeStats
 
 
 # ----------------------------------------------------------------------
@@ -117,10 +114,10 @@ def detect_spam(msg, subj: str, eml_path: Path) -> bool:
     return False
 
 
-def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool:
+def process_email_file(eml: Path, attachments_root: Path, db_path: Path, stats: ThreadSafeStats) -> bool:
     """
     Process one email file.
-    Returns True if processed (not skipped), False if already processed.
+    Returns True if processed, False if failed.
     """
     logger = get_logger(__name__)
     try:
@@ -133,7 +130,7 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool
     fingerprint = sha256_bytes(raw)
 
     if db.is_processed(db_path, fingerprint):
-        return False
+        return True
 
     try:
         msg = email.message_from_bytes(raw)
@@ -151,6 +148,7 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool
     if detect_spam(msg, subj, eml):
         db.mark_processed(db_path, fingerprint, str(eml), from_hdr, subj, date_iso, [], True)
         logger.info(f"Skipped spam: {eml}")
+        stats.increment(StatKey.SKIPPED)
         return True
 
     safe_from = sanitize(from_hdr)
@@ -183,6 +181,7 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path) -> bool
                 saved_paths.append(str(outpath))
 
     db.mark_processed(db_path, fingerprint, str(eml), from_hdr, subj, date_iso, saved_paths, False)
+    stats.increment(StatKey.EXTRACTED)
     return True
 
 
@@ -224,7 +223,7 @@ def count_mail_files(root_maildir: Path) -> int:
     return sum(1 for _ in iter_mail_files(root_maildir))
 
 
-def run_extractor(settings: Settings, stats: ThreadSafeStats | dict):
+def run_extractor(settings: Settings, stats: ThreadSafeStats):
     """Entry point for extraction stage."""
     maildir = settings.maildir
     attach_dir = settings.attachments_dir
@@ -245,34 +244,18 @@ def run_extractor(settings: Settings, stats: ThreadSafeStats | dict):
     total_files = count_mail_files(maildir)
     logger.info(f"Starting extraction. Total email files found: {total_files}")
 
-    status_thread = StatusThread(settings.status_interval, stats)
-    status_thread.start()
-
     def do_one(eml: Path):
-        """Process one email file and return whether it was processed."""
-        try:
-            processed = process_email_file(eml, attach_dir, db_path)
-            return processed
-        except Exception as e:
-            logger.error(f"Error processing {eml}: {e}", exc_info=True)
-            return False
+        return process_email_file(eml, attach_dir, db_path, stats)
 
     try:
         with create_managed_executor(
-            max_workers=settings.max_extract_workers,
-            name="Extractor",
-            progress_interval=250
+                max_workers=settings.max_extract_workers,
+                name="Extractor",
+                progress_interval=250,
         ) as executor:
-            results = executor.map(do_one, iter_mail_files(maildir))
-            
+            results = executor.map(do_one, iter_mail_files(maildir), create_increment_callback(stats))
+
             # Count successfully processed emails
             processed_count = sum(1 for r in results if r.success and r.result)
-            
-            # Update stats in a thread-safe way
-            if isinstance(stats, dict):
-                stats["extracted"] = stats.get("extracted", 0) + processed_count
-            else:
-                stats.increment("extracted", processed_count)
     finally:
-        status_thread.stop()
         logger.info(f"Extraction completed: {processed_count}/{total_files} messages processed.")

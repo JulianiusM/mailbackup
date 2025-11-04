@@ -19,6 +19,7 @@ from mailbackup.integrity import integrity_check
 from mailbackup.logger import get_logger
 from mailbackup.manifest import ManifestManager
 from mailbackup.rotation import rotate_archives
+from mailbackup.statistics import ThreadSafeStats, log_status
 from mailbackup.uploader import incremental_upload
 from mailbackup.utils import run_streaming
 
@@ -29,10 +30,11 @@ def _parse_command(cmd_str: str) -> list[str]:
     return shlex.split(cmd_str)
 
 
+# noinspection PyUnresolvedReferences
 def run_pipeline(
         settings: Settings,
         manifest: ManifestManager,
-        stats: dict,
+        stats: ThreadSafeStats,
         fetch: bool = False,
         process: bool = False,
         stages: list[str] | None = None,
@@ -71,6 +73,7 @@ def run_pipeline(
         # Step 2: process mail
         if process:
             run_extractor(settings, stats)
+            log_status(stats, "Extractor finished")
         else:
             logger.debug("Processing step skipped.")
 
@@ -87,6 +90,8 @@ def run_pipeline(
                 integrity_check(settings, manifest, stats)
             else:
                 logger.warning(f"Unknown stage '{label}' – skipped")
+
+            log_stats(stats, f"{label} finished")
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Command failed: {e.cmd} (exit {e.returncode})")

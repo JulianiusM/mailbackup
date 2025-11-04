@@ -12,9 +12,23 @@ and periodic status reporting across multiple worker threads.
 from __future__ import annotations
 
 import threading
-from typing import Dict, Optional, Any
+from enum import Enum
+from typing import Dict, Optional, Callable
 
+from mailbackup.executor import TaskResult
 from mailbackup.logger import get_logger
+
+
+class StatKey(Enum):
+    FETCHED = "Fetched"
+    EXTRACTED = "Extracted"
+    BACKED_UP = "Backed up"
+    ARCHIVED = "Archived"
+    VERIFIED = "Verified"
+    REPAIRED = "Repaired"
+    SKIPPED = "Skipped"
+    PROCESSED = "Total processed"
+    FAILED = "Failed"
 
 
 class ThreadSafeStats:
@@ -25,13 +39,13 @@ class ThreadSafeStats:
     Used to track metrics like uploaded, extracted, verified, etc. across
     multiple worker threads.
     """
-    
+
     def __init__(self):
         """Initialize with empty counters and a lock."""
-        self._counters: Dict[str, int] = {}
+        self._counters: Dict[StatKey, int] = {}
         self._lock = threading.Lock()
-    
-    def increment(self, key: str, value: int = 1) -> None:
+
+    def increment(self, key: StatKey, value: int = 1) -> None:
         """
         Atomically increment a counter.
         
@@ -41,8 +55,8 @@ class ThreadSafeStats:
         """
         with self._lock:
             self._counters[key] = self._counters.get(key, 0) + value
-    
-    def set(self, key: str, value: int) -> None:
+
+    def set(self, key: StatKey, value: int) -> None:
         """
         Atomically set a counter value.
         
@@ -52,8 +66,8 @@ class ThreadSafeStats:
         """
         with self._lock:
             self._counters[key] = value
-    
-    def get(self, key: str, default: int = 0) -> int:
+
+    def get(self, key: StatKey, default: int = 0) -> int:
         """
         Thread-safe get counter value.
         
@@ -66,8 +80,8 @@ class ThreadSafeStats:
         """
         with self._lock:
             return self._counters.get(key, default)
-    
-    def get_all(self) -> Dict[str, int]:
+
+    def get_all(self) -> Dict[StatKey, int]:
         """
         Get a snapshot of all counters.
         
@@ -76,8 +90,8 @@ class ThreadSafeStats:
         """
         with self._lock:
             return self._counters.copy()
-    
-    def to_dict(self) -> Dict[str, int]:
+
+    def to_dict(self) -> Dict[StatKey, int]:
         """
         Convert to plain dictionary (for compatibility).
         
@@ -85,20 +99,20 @@ class ThreadSafeStats:
             Dictionary copy of all counters
         """
         return self.get_all()
-    
+
     def reset(self) -> None:
         """Reset all counters to zero."""
         with self._lock:
             self._counters.clear()
-    
-    def __getitem__(self, key: str) -> int:
+
+    def __getitem__(self, key: StatKey) -> int:
         """Support dict-like access: stats['uploaded']"""
         return self.get(key, 0)
-    
-    def __setitem__(self, key: str, value: int) -> None:
+
+    def __setitem__(self, key: StatKey, value: int) -> None:
         """Support dict-like assignment: stats['uploaded'] = 5"""
         self.set(key, value)
-    
+
     def format_status(self) -> str:
         """
         Format current statistics as a status string.
@@ -107,14 +121,10 @@ class ThreadSafeStats:
             Formatted status string with all counters
         """
         snapshot = self.get_all()
-        return (
-            f"Uploaded: {snapshot.get('uploaded', 0)} | "
-            f"Archived: {snapshot.get('archived', 0)} | "
-            f"Verified: {snapshot.get('verified', 0)} | "
-            f"Repaired: {snapshot.get('repaired', 0)} | "
-            f"Skipped: {snapshot.get('skipped', 0)} | "
-            f"Extracted: {snapshot.get('extracted', 0)}"
-        )
+        txt = f" | "
+        for stat in StatKey:
+            txt += f"{stat.value}: {snapshot.get(stat, 0)} | "
+        return txt
 
 
 class StatusThread:
@@ -124,8 +134,8 @@ class StatusThread:
     Runs in the background and periodically logs the current statistics.
     Supports both dict and ThreadSafeStats for backward compatibility.
     """
-    
-    def __init__(self, interval: int, counters: Dict[str, int] | ThreadSafeStats):
+
+    def __init__(self, interval: int, counters: ThreadSafeStats):
         """
         Initialize status reporter.
         
@@ -170,35 +180,10 @@ class StatusThread:
         Returns:
             Formatted status string
         """
-        # If it's a ThreadSafeStats object with format_status method, use it
-        if isinstance(self.counters, ThreadSafeStats):
-            return self.counters.format_status()
-        
-        # Otherwise, treat as dict
-        return format_stats_dict(self.counters)
+        return self.counters.format_status()
 
 
-def format_stats_dict(stats: Dict[str, int]) -> str:
-    """
-    Format a statistics dictionary as a status string.
-    
-    Args:
-        stats: Dictionary of statistics counters
-        
-    Returns:
-        Formatted status string
-    """
-    return (
-        f"Uploaded: {stats.get('uploaded', 0)} | "
-        f"Archived: {stats.get('archived', 0)} | "
-        f"Verified: {stats.get('verified', 0)} | "
-        f"Repaired: {stats.get('repaired', 0)} | "
-        f"Skipped: {stats.get('skipped', 0)} | "
-        f"Extracted: {stats.get('extracted', 0)}"
-    )
-
-
-def log_status(stats: ThreadSafeStats | Dict[str, int], stage: str = ""):
+def log_status(stats: ThreadSafeStats, stage: str = ""):
     """
     Log current statistics status.
     
@@ -207,14 +192,9 @@ def log_status(stats: ThreadSafeStats | Dict[str, int], stage: str = ""):
         stage: Optional stage name to include in log message
     """
     logger = get_logger(__name__)
-    
-    if isinstance(stats, ThreadSafeStats):
-        status_str = stats.format_status()
-    else:
-        status_str = format_stats_dict(stats)
-    
-    prefix = f"[{stage}] " if stage else "[STATUS] "
-    logger.info(prefix + status_str)
+
+    prefix = f"[{stage}] " if stage else ""
+    logger.status(prefix + stats.format_status())
 
 
 def create_stats() -> ThreadSafeStats:
@@ -226,3 +206,16 @@ def create_stats() -> ThreadSafeStats:
     """
     return ThreadSafeStats()
 
+
+def create_increment_callback(
+        stats: ThreadSafeStats,
+        success_key: StatKey = StatKey.PROCESSED,
+        failure_key: StatKey = StatKey.FAILED,
+) -> Callable[[TaskResult], None]:
+    def increment_callback(result: TaskResult) -> None:
+        if result.success and (True if not isinstance(result.result, bool) else result.result):
+            stats.increment(success_key)
+        else:
+            stats.increment(failure_key)
+
+    return increment_callback

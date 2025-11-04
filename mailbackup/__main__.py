@@ -19,7 +19,8 @@ from mailbackup.executor import get_global_interrupt_manager
 from mailbackup.logger import setup_logger, get_logger
 from mailbackup.manifest import ManifestManager
 from mailbackup.orchestrator import run_pipeline
-from mailbackup.utils import ensure_dirs, install_signal_handlers, StatusThread
+from mailbackup.statistics import StatusThread, create_stats, log_status
+from mailbackup.utils import ensure_dirs, install_signal_handlers
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,8 +35,6 @@ def build_parser() -> argparse.ArgumentParser:
             "check",
             "run",
             "full",
-            # legacy aliases
-            "extract", "upload", "rotate", "verify",
         ],
         help="Which stage or pipeline to run",
     )
@@ -65,8 +64,7 @@ def main():
     manifest.recover_interrupted()
     manifest.restore_queue()
 
-    stats = {"extracted": 0, "uploaded": 0, "archived": 0, "verified": 0, "repaired": 0, "skipped": 0}
-
+    stats = create_stats()
     status_thread = StatusThread(settings.status_interval, stats)
     status_thread.start()
 
@@ -75,7 +73,7 @@ def main():
 
     def on_interrupt(signum, frame):
         logger.warning("Interrupt received. Saving state and exiting safely...")
-        # Signal all executors to shutdown
+        # Signal all executors to shut down
         interrupt_manager.interrupt_all()
         # Save manifest state
         manifest.dump_queue()
@@ -98,11 +96,6 @@ def main():
         "check": dict(fetch=False, process=False, stages=["check"]),
         "run": dict(fetch=False, process=True, stages=["backup", "archive", "check"]),
         "full": dict(fetch=True, process=True, stages=["backup", "archive", "check"]),
-        # Legacy aliases
-        "extract": dict(fetch=False, process=True, stages=[]),
-        "upload": dict(fetch=False, process=False, stages=["backup"]),
-        "rotate": dict(fetch=False, process=False, stages=["archive"]),
-        "verify": dict(fetch=False, process=False, stages=["check"]),
     }
 
     try:
@@ -119,9 +112,7 @@ def main():
 
     elapsed = time.time() - start
     logger.info(f"Action '{args.action}' completed in {elapsed:.1f}s")
-    logger.info(
-        f"Processed={stats['extracted']} | Uploaded={stats['uploaded']} | Archived={stats['archived']} | Verified={stats['verified']} | Repaired={stats['repaired']} | Skipped={stats['skipped']}"
-    )
+    log_status(stats)
 
 
 if __name__ == "__main__":
