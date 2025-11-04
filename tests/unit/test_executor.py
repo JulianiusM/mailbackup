@@ -235,7 +235,7 @@ class TestManagedThreadPoolExecutor:
         
         assert len(results) == 10
         # Should have progress messages
-        progress_msgs = [r for r in caplog.records if "Progress" in r.message]
+        progress_msgs = [r for r in caplog.records if "Progress" in r.getMessage()]
         assert len(progress_msgs) > 0
 
 

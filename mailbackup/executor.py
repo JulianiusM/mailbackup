@@ -177,8 +177,6 @@ class ManagedThreadPoolExecutor:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with graceful shutdown."""
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit with graceful shutdown."""
         if self._registered:
             _global_interrupt_manager.unregister_executor(self)
             self._registered = False
