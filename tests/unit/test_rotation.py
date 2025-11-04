@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from mailbackup.statistics import create_stats, StatKey
 """
 Unit tests for rotation.py module.
 """
@@ -33,11 +34,11 @@ class TestRotateArchives:
         mocker.patch("mailbackup.rotation.db.get_candidate_rotation_years", return_value=[])
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
-        assert stats["archived"] == 0
+        assert stats[StatKey.ARCHIVED] == 0
 
     def test_rotate_archives_single_year(self, test_settings, mocker, mock_rotation_deps):
         """Test rotation with single year."""
@@ -55,11 +56,11 @@ class TestRotateArchives:
         archive_file.write_bytes(b"archive content")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
-        assert stats["archived"] > 0
+        assert stats[StatKey.ARCHIVED] > 0
 
     def test_rotate_archives_multiple_years(self, test_settings, mocker, mock_rotation_deps):
         """Test rotation with multiple years."""
@@ -78,12 +79,12 @@ class TestRotateArchives:
             archive_file.write_bytes(b"archive content")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
         # Should process all years
-        assert stats["archived"] > 0
+        assert stats[StatKey.ARCHIVED] > 0
 
     def test_rotate_archives_skip_complete_year(self, test_settings, mocker, mock_rotation_deps):
         """Test rotation skips year when archive is complete."""
@@ -96,12 +97,12 @@ class TestRotateArchives:
         mocker.patch("mailbackup.rotation.rclone_lsf", return_value=Mock(returncode=0))  # Archive exists
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
         # Should skip year
-        assert stats["archived"] == 0
+        assert stats[StatKey.ARCHIVED] == 0
 
     def test_rotate_archives_marks_archived(self, test_settings, mocker, mock_rotation_deps):
         """Test that rotation marks year as archived in DB."""
@@ -121,7 +122,7 @@ class TestRotateArchives:
         mock_mark = mocker.patch("mailbackup.rotation.db.mark_archived_year")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
@@ -143,7 +144,7 @@ class TestRotateArchives:
         archive_file.write_bytes(b"archive content")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         rotate_archives(test_settings, manifest, stats)
 
@@ -176,7 +177,7 @@ class TestRotateArchives:
         archive_file.write_bytes(b"archive content")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         # Should not raise exception
         rotate_archives(test_settings, manifest, stats)
@@ -201,7 +202,7 @@ class TestRotateArchives:
         archive_file.write_bytes(b"archive content")
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"archived": 0}
+        stats = create_stats()
 
         # Archive download should be attempted
         rotate_archives(test_settings, manifest, stats)

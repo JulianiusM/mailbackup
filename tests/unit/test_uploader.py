@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from mailbackup.statistics import create_stats, StatKey
 """
 Unit tests for uploader.py module.
 """
@@ -16,11 +17,11 @@ class TestIncrementalUpload:
         """Test upload with no unsynced emails."""
         mocker.patch("mailbackup.uploader.db.fetch_unsynced", return_value=[])
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         incremental_upload(test_settings, manifest, stats)
 
-        assert stats["uploaded"] == 0
+        assert stats[StatKey.BACKED_UP] == 0
 
     def test_incremental_upload_missing_email_file(self, test_settings, mocker):
         """Test upload when email file is missing."""
@@ -45,10 +46,10 @@ class TestIncrementalUpload:
         mocker.patch("mailbackup.rclone.rclone_moveto", return_value=Mock(returncode=0))
 
         manifest = Mock(spec=ManifestManager)
-        stats = {"uploaded": 0, "skipped": 0}
+        stats = create_stats()
 
         # Should handle missing file gracefully
         incremental_upload(test_settings, manifest, stats)
 
         # Upload should succeed even without the email file (edge case)
-        assert stats["uploaded"] >= 0
+        assert stats[StatKey.BACKED_UP] >= 0
