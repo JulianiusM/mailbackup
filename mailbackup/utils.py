@@ -43,7 +43,7 @@ from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, r
 
 
 class StatusThread:
-    def __init__(self, interval: int, counters: Dict[str, int]):
+    def __init__(self, interval: int, counters: Dict[str, int] | Any):
         self.logger = get_logger(__name__)
         self.interval = interval
         self.counters = counters
@@ -73,12 +73,18 @@ class StatusThread:
             self._thread.join(timeout=2.0)
 
     def status_summary(self) -> str:
+        # Support both dict and ThreadSafeStats
+        if isinstance(self.counters, dict):
+            get_val = lambda k: self.counters.get(k, 0)
+        else:
+            get_val = lambda k: self.counters.get(k, 0)
+        
         return (
-            f"Uploaded: {self.counters.get('uploaded', 0)} | "
-            f"Archived: {self.counters.get('archived', 0)} | "
-            f"Verified: {self.counters.get('verified', 0)} | "
-            f"Repaired: {self.counters.get('repaired', 0)} | "
-            f"Skipped: {self.counters.get('skipped', 0)}"
+            f"Uploaded: {get_val('uploaded')} | "
+            f"Archived: {get_val('archived')} | "
+            f"Verified: {get_val('verified')} | "
+            f"Repaired: {get_val('repaired')} | "
+            f"Skipped: {get_val('skipped')}"
         )
 
 

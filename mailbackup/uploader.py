@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from mailbackup import db
 from mailbackup.config import Settings
@@ -33,8 +34,11 @@ from mailbackup.utils import (
     atomic_upload_file,
 )
 
+if TYPE_CHECKING:
+    from mailbackup.statistics import ThreadSafeStats
 
-def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dict) -> None:
+
+def incremental_upload(settings: Settings, manifest: ManifestManager, stats: ThreadSafeStats | dict) -> None:
     """
     Upload unsynced messages from the local DB to the remote backend.
 
@@ -143,7 +147,11 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
 
         if not email_uploaded:
             logger.debug(f"Email not uploaded: {remote_email}")
-            stats["skipped"] = stats.get("skipped", 0) + 1
+            # Thread-safe increment
+            if isinstance(stats, dict):
+                stats["skipped"] = stats.get("skipped", 0) + 1
+            else:
+                stats.increment("skipped")
             shutil.rmtree(docset_dir, ignore_errors=True)
             return False
 
@@ -169,7 +177,11 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
         except Exception as e:
             logger.warning(f"Failed to persist manifest queue: {e}")
 
-        stats["uploaded"] = stats.get("uploaded", 0) + 1
+        # Thread-safe increment
+        if isinstance(stats, dict):
+            stats["uploaded"] = stats.get("uploaded", 0) + 1
+        else:
+            stats.increment("uploaded")
 
         shutil.rmtree(docset_dir, ignore_errors=True)
         return True
@@ -183,18 +195,23 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: dic
             name="Uploader",
             progress_interval=25
         ) as executor:
-            results = executor.map(_process_row, rows)
-            
-            # Count successful uploads
-            completed = sum(1 for r in results if r.success and r.result)
+            # Process all rows - stats are updated within _process_row
+            executor.map(_process_row, rows)
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()
     logger.info("Incremental upload complete.")
+    
+    # Get stats in a thread-safe way
+    if isinstance(stats, dict):
+        stats_dict = stats
+    else:
+        stats_dict = stats.get_all()
+    
     logger.info("[STATUS] Uploaded: {u} | Archived: {a} | Verified: {v} | Repaired: {r} | Skipped: {s}".format(
-        u=stats.get("uploaded", 0),
-        a=stats.get("archived", 0),
-        v=stats.get("verified", 0),
-        r=stats.get("repaired", 0),
-        s=stats.get("skipped", 0),
+        u=stats_dict.get("uploaded", 0),
+        a=stats_dict.get("archived", 0),
+        v=stats_dict.get("verified", 0),
+        r=stats_dict.get("repaired", 0),
+        s=stats_dict.get("skipped", 0),
     ))

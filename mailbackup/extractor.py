@@ -16,7 +16,7 @@ from __future__ import annotations
 import email
 from email.header import decode_header, make_header
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
 
 from mailbackup import db
 from mailbackup.config import Settings
@@ -25,6 +25,9 @@ from mailbackup.logger import get_logger
 from mailbackup.utils import (
     sanitize, StatusThread, unique_path_for_filename, sha256_bytes, parse_mail_date, parse_year_and_ts
 )
+
+if TYPE_CHECKING:
+    from mailbackup.statistics import ThreadSafeStats
 
 
 # ----------------------------------------------------------------------
@@ -220,7 +223,7 @@ def count_mail_files(root_maildir: Path) -> int:
     return sum(1 for _ in iter_mail_files(root_maildir))
 
 
-def run_extractor(settings: Settings, stats: dict):
+def run_extractor(settings: Settings, stats: ThreadSafeStats | dict):
     """Entry point for extraction stage."""
     maildir = settings.maildir
     attach_dir = settings.attachments_dir
@@ -264,8 +267,11 @@ def run_extractor(settings: Settings, stats: dict):
             # Count successfully processed emails
             processed_count = sum(1 for r in results if r.success and r.result)
             
-            # Update stats
-            stats["extracted"] = stats.get("extracted", 0) + processed_count
+            # Update stats in a thread-safe way
+            if isinstance(stats, dict):
+                stats["extracted"] = stats.get("extracted", 0) + processed_count
+            else:
+                stats.increment("extracted", processed_count)
     finally:
         status_thread.stop()
         logger.info(f"Extraction completed: {processed_count}/{total_files} messages processed.")
