@@ -723,3 +723,5 @@ class TestRebuildDocsetIntegration:
 
         # Cleanup
         shutil.rmtree(result.parent.parent, ignore_errors=True)
+
+
