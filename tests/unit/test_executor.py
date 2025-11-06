@@ -173,7 +173,7 @@ class TestManagedThreadPoolExecutor:
                 executor.submit(slow_task, 1)
 
     def test_interrupt_during_map(self):
-        """Test interrupt during map operation."""
+        """Test interrupt during map operation raises KeyboardInterrupt."""
 
         def slow_task(x):
             if x > 2:
@@ -189,11 +189,11 @@ class TestManagedThreadPoolExecutor:
             interrupt_thread = threading.Thread(target=interrupt_after_delay)
             interrupt_thread.start()
 
-            results = executor.map(slow_task, range(10))
+            # The map should raise KeyboardInterrupt when interrupted
+            with pytest.raises(KeyboardInterrupt):
+                executor.map(slow_task, range(10))
+            
             interrupt_thread.join()
-
-            # Some tasks may not complete due to interrupt
-            assert len(results) <= 10
 
     def test_max_workers_minimum(self):
         """Test max_workers is at least 1."""
@@ -227,23 +227,31 @@ class TestManagedThreadPoolExecutor:
     def test_progress_logging(self, caplog):
         """Test progress logging at intervals."""
         import logging
-        caplog.set_level(logging.INFO)
+        
+        # Set propagate=True on mailbackup logger to allow caplog to capture
+        mailbackup_logger = logging.getLogger("mailbackup")
+        old_propagate = mailbackup_logger.propagate
+        mailbackup_logger.propagate = True
+        caplog.set_level(logging.INFO, logger="mailbackup")
+        
+        try:
+            def simple_task(x):
+                return x
 
-        def simple_task(x):
-            return x
+            # Set progress interval to 3 for testing
+            with ManagedThreadPoolExecutor(
+                    max_workers=2,
+                    name="ProgressTest",
+                    progress_interval=3
+            ) as executor:
+                results = executor.map(simple_task, range(10))
 
-        # Set progress interval to 3 for testing
-        with ManagedThreadPoolExecutor(
-                max_workers=2,
-                name="ProgressTest",
-                progress_interval=3
-        ) as executor:
-            results = executor.map(simple_task, range(10))
-
-        assert len(results) == 10
-        # Should have progress messages
-        progress_msgs = [r for r in caplog.records if "Progress" in r.getMessage()]
-        assert len(progress_msgs) > 0
+            assert len(results) == 10
+            # Should have progress messages
+            progress_msgs = [r for r in caplog.records if "Progress" in r.getMessage()]
+            assert len(progress_msgs) > 0
+        finally:
+            mailbackup_logger.propagate = old_propagate
 
 
 class TestGlobalInterruptManager:

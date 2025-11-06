@@ -132,7 +132,7 @@ class TestUploadEmailEdgeCases:
         # Mock operations
         mocker.patch("mailbackup.uploader.atomic_upload_file", return_value=True)
         mocker.patch("mailbackup.uploader.remote_hash", return_value={
-            "2024/2024-01-01_12-00-00_from_test@example.com_subject_Test_[abc123]/email.eml": "hash123"
+            "email.eml": "hash123"
         })
         mocker.patch("mailbackup.uploader.db.mark_synced")
         mocker.patch("mailbackup.uploader.sha256", return_value="hash123")
@@ -174,7 +174,7 @@ class TestUploadEmailEdgeCases:
         # Mock operations - hash mismatch
         mocker.patch("mailbackup.uploader.atomic_upload_file", return_value=True)
         mocker.patch("mailbackup.uploader.remote_hash", return_value={
-            "2024/2024-01-01_12-00-00_from_test@example.com_subject_Test_[abc123]/email.eml": "wrong_hash"
+            "email.eml": "wrong_hash"
         })
         mocker.patch("mailbackup.uploader.sha256", return_value="correct_hash")
         mocker.patch("mailbackup.uploader.rclone_deletefile")

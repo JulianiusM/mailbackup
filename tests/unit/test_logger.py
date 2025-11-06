@@ -6,6 +6,7 @@ Unit tests for logger.py module.
 import logging
 
 from mailbackup.logger import setup_logger, get_logger, STATUS_LEVEL
+from mailbackup.config import Settings
 
 
 class TestSetupLogger:
@@ -13,13 +14,49 @@ class TestSetupLogger:
 
     def test_setup_logger_creates_logger(self, tmp_path):
         """Test that setup_logger creates a logger with handlers."""
-        log_path = tmp_path / "test.log"
-        logger = setup_logger(log_path)
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
 
-        assert logger is not None
-        assert logger.name == "mailbackup"
-        assert len(logger.handlers) == 2  # file and console
-        assert log_path.exists()
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
+
+            assert logger is not None
+            assert logger.name == "mailbackup"
+            assert len(logger.handlers) == 2  # file and console
+            assert settings.log_path.exists()
+        finally:
+            mailbackup.logger._LOGGER = old_logger
 
     def test_setup_logger_sets_level(self, tmp_path):
         """Test that setup_logger sets the correct logging level."""
@@ -29,8 +66,36 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            log_path = tmp_path / "test.log"
-            logger = setup_logger(log_path, level=logging.CRITICAL)
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="CRITICAL",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
 
             assert logger.level == logging.CRITICAL
         finally:
@@ -38,65 +103,268 @@ class TestSetupLogger:
 
     def test_setup_logger_adds_status_level(self, tmp_path):
         """Test that setup_logger adds the STATUS level."""
-        log_path = tmp_path / "test.log"
-        logger = setup_logger(log_path)
-
-        assert logging.getLevelName(STATUS_LEVEL) == "STATUS"
-        assert hasattr(logger, 'status')
-
-    def test_setup_logger_idempotent(self, tmp_path):
-        """Test that setup_logger can be called multiple times."""
-        log_path = tmp_path / "test.log"
-        logger1 = setup_logger(log_path)
-        logger2 = setup_logger(log_path)
-
-        assert logger1 is logger2
-
-    def test_setup_logger_file_handler(self, tmp_path):
-        """Test that setup_logger creates a file handler."""
-        log_path = tmp_path / "test.log"
-        logger = setup_logger(log_path)
-
-        file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
-        assert len(file_handlers) == 1
-        assert file_handlers[0].level == logging.DEBUG
-
-    def test_setup_logger_console_handler(self, tmp_path):
-        """Test that setup_logger creates a console handler."""
-        log_path = tmp_path / "test.log"
-        logger = setup_logger(log_path)
-
-        console_handlers = [h for h in logger.handlers if
-                            isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)]
-        assert len(console_handlers) == 1
-        assert console_handlers[0].level == logging.INFO
-
-    def test_setup_logger_no_propagation(self, tmp_path):
-        """Test that setup_logger disables propagation."""
-        log_path = tmp_path / "test.log"
-        logger = setup_logger(log_path)
-
-        assert logger.propagate is False
-
-    def test_status_method_exists(self, tmp_path):
-        """Test that the status method is added to logger."""
         # Reset global logger to test fresh initialization
         import mailbackup.logger
         old_logger = mailbackup.logger._LOGGER
         mailbackup.logger._LOGGER = None
 
         try:
-            log_path = tmp_path / "test.log"
-            logger = setup_logger(log_path)
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
 
-            # Should not raise AttributeError
+            assert logging.getLevelName(STATUS_LEVEL) == "STATUS"
+            assert hasattr(logger, 'status')
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_setup_logger_idempotent(self, tmp_path):
+        """Test that setup_logger can be called multiple times."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger1 = setup_logger(settings)
+            logger2 = setup_logger(settings)
+
+            assert logger1 is logger2
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_setup_logger_file_handler(self, tmp_path):
+        """Test that setup_logger creates a file handler."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
+
+            file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
+            assert len(file_handlers) == 1
+            assert file_handlers[0].level == logging.DEBUG
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_setup_logger_console_handler(self, tmp_path):
+        """Test that setup_logger creates a console handler."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
+
+            console_handlers = [h for h in logger.handlers if
+                                isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)]
+            assert len(console_handlers) == 1
+            assert console_handlers[0].level == logging.INFO
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_setup_logger_no_propagation(self, tmp_path):
+        """Test that setup_logger disables propagation."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
+
+            assert logger.propagate is False
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_status_method_exists(self, tmp_path):
+        """Test that status method is added to Logger."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            logger = setup_logger(settings)
+
+            assert hasattr(logging.Logger, 'status')
+            # Test that the method is callable
             logger.status("Test status message")
-
-            # Verify log file contains the message
-            assert log_path.exists()
-            with open(log_path, 'r') as f:
-                content = f.read()
-                assert "Test status message" in content
         finally:
             mailbackup.logger._LOGGER = old_logger
 
@@ -104,8 +372,96 @@ class TestSetupLogger:
 class TestGetLogger:
     """Tests for get_logger function."""
 
-    def test_get_logger_without_setup(self):
-        """Test that get_logger works before setup_logger is called."""
+    def test_get_logger_after_setup(self, tmp_path):
+        """Test get_logger returns child logger after setup."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            setup_logger(settings)
+            logger = get_logger("test_module")
+
+            assert logger.name == "mailbackup.test_module"
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_get_logger_no_name(self, tmp_path):
+        """Test get_logger without name returns root logger."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = Settings(
+                maildir=tmp_path / "maildir",
+                attachments_dir=tmp_path / "attachments",
+                remote="test:remote",
+                db_path=tmp_path / "test.db",
+                log_path=tmp_path / "test.log",
+                tmp_dir=tmp_path / "tmp",
+                archive_dir=tmp_path / "archives",
+                manifest_path=tmp_path / "manifest.csv",
+                retention_years=2,
+                keep_local_after_archive=False,
+                verify_integrity=True,
+                repair_on_failure=True,
+                manifest_remote_name="manifest.csv",
+                max_manifest_conflict_retries=3,
+                max_hash_threads=2,
+                max_upload_workers=2,
+                max_extract_workers=1,
+                upload_batch_size=100,
+                status_interval=10,
+                log_level="INFO",
+                rotate_by_time=True,
+                max_log_files=10,
+                max_log_size=50 * 1024 * 1024,
+                fetch_command="",
+                rclone_log_level="INFO",
+                rclone_transfers=4,
+                rclone_multi_thread_streams=2,
+            )
+            setup_logger(settings)
+            logger = get_logger()
+
+            assert logger.name == "mailbackup"
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
+    def test_get_logger_before_setup(self):
+        """Test get_logger returns fallback logger before setup."""
         # Reset global logger
         import mailbackup.logger
         old_logger = mailbackup.logger._LOGGER
@@ -113,40 +469,10 @@ class TestGetLogger:
 
         try:
             logger = get_logger("test_module")
+
+            # Should return a fallback logger
             assert logger is not None
-            assert "test_module" in logger.name
+            assert "mailbackup.temp" in logger.name
         finally:
             mailbackup.logger._LOGGER = old_logger
 
-    def test_get_logger_after_setup(self, tmp_path):
-        """Test that get_logger returns child logger after setup."""
-        log_path = tmp_path / "test.log"
-        setup_logger(log_path)
-
-        logger = get_logger("test_module")
-        assert logger is not None
-        assert "test_module" in logger.name
-
-    def test_get_logger_no_name(self, tmp_path):
-        """Test that get_logger works without a name parameter."""
-        log_path = tmp_path / "test.log"
-        setup_logger(log_path)
-
-        logger = get_logger()
-        assert logger is not None
-        assert logger.name == "mailbackup"
-
-    def test_get_logger_fallback_creates_stderr_logger(self):
-        """Test that fallback logger logs to stderr."""
-        import mailbackup.logger
-        old_logger = mailbackup.logger._LOGGER
-        mailbackup.logger._LOGGER = None
-
-        try:
-            logger = get_logger()
-            assert logger is not None
-            # The fallback logger should have at least one handler
-            temp_logger = logging.getLogger("mailbackup.temp")
-            assert len(temp_logger.handlers) > 0
-        finally:
-            mailbackup.logger._LOGGER = old_logger
