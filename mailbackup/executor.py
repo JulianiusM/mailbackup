@@ -191,6 +191,11 @@ class ManagedThreadPoolExecutor:
         self.shutdown(wait=True)
         return False  # Don't suppress exceptions
 
+    def _completion_callback(self, future):
+        with self._lock:
+            self._futures.remove(future)
+            self._completed += 1
+
     def submit(
             self,
             fn: Callable[[T], R],
@@ -227,6 +232,8 @@ class ManagedThreadPoolExecutor:
             self._futures.append(future)
             self._total += 1
 
+        future.add_done_callback(self._completion_callback)
+
         return future
 
     def map(
@@ -256,7 +263,7 @@ class ManagedThreadPoolExecutor:
         if total == 0:
             return results
 
-        silent_info(self.logger, f"Starting {self.name} for {total} items with {self.max_workers} workers", self.silent)
+        silent_info(self.logger, f"Queuing {total} items with {self.max_workers} workers for {self.name}", self.silent)
 
         # Submit all tasks
         futures_map: dict[Future[R], T] = {}
@@ -307,8 +314,8 @@ class ManagedThreadPoolExecutor:
                     increment_callback(task_res)
 
                 with self._lock:
-                    self._completed += 1
                     completed = self._completed
+                    total = self._total
 
                 # Progress logging
                 if completed % self.progress_interval == 0 or completed == total:

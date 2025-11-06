@@ -206,11 +206,12 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: Thr
                    range((len(rows) + settings.upload_batch_size - 1) // settings.upload_batch_size)]
             for _rows in res:
                 # Process all rows - stats are updated within _process_row
-                logger.debug(f"Processing {len(_rows)} rows...")
+                logger.debug(f"Processing next {len(_rows)}/{total_to_upload} rows...")
                 executor.map(_process_row, _rows, create_increment_callback(stats))
                 if executor.interrupt_flag.is_set():
                     logger.error(f"Upload interrupted...")
                     raise KeyboardInterrupt()
+                total_to_upload -= len(_rows)
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()
