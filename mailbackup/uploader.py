@@ -109,7 +109,7 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
                     logger.warning(f"No remote hashsum found for email {email_local}")
                 elif remote_map.get(f"{remote_path}/email.eml") != hash_email:
                     logger.warning(
-                        f"Verification mismatch for {email_local} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
+                        f"Verification mismatch for {email_local} remote_sha={remote_map[f"{remote_path}/email.eml"][:8]} expected={hash_email[:8]}")
                 else:
                     email_uploaded = True
                     break
