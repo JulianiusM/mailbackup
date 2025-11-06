@@ -28,14 +28,13 @@ import uuid
 from contextlib import contextmanager
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, TYPE_CHECKING, Callable
 
 import unicodedata
 
 if TYPE_CHECKING:
     from mailbackup.config import Settings
 
-from mailbackup.executor import create_managed_executor
 from mailbackup.logger import get_logger
 from mailbackup.rclone import rclone_copyto, rclone_deletefile, rclone_moveto, rclone_cat, rclone_hashsum, rclone_lsjson
 
@@ -67,12 +66,19 @@ def run_cmd(*args: str, check: bool = True, fatal: bool = False) -> Union[
     Logs errors (and success at debug) so callers can rely on logs without repeating prints.
     """
     local_logger = get_logger(__name__)
+    local_logger.debug(f"Run command: {' '.join(args)}")
     try:
         cp: subprocess.CompletedProcess = subprocess.run(args, check=check, capture_output=True, text=True)
+        if cp.returncode < 0:
+            local_logger.error(f"Command interrupted: {' '.join(args)}")
+            raise KeyboardInterrupt()
         out = cp.stdout or ""
         local_logger.debug(f"Command succeeded: {' '.join(args)} -> {out.strip()[:400]} | {cp.returncode}")
         return cp
     except subprocess.CalledProcessError as e:
+        if e.returncode < 0:
+            local_logger.error(f"Command interrupted: {' '.join(args)}")
+            raise KeyboardInterrupt()
         local_logger.error(f"Command failed: {' '.join(args)} -> {e.stderr.strip()}")
         if fatal:
             raise
@@ -132,6 +138,8 @@ def safe_write_json(path: Path, data: Any) -> None:
     _logger = get_logger(__name__)
     try:
         write_json_atomic(path, data)
+    except (KeyboardInterrupt, InterruptedError):
+        raise
     except Exception:
         _logger.debug(f"Failed to write JSON atomically to {path}, retry with best effort fallback")
         try:
@@ -265,17 +273,24 @@ def install_signal_handlers(on_interrupt):
     signal.signal(signal.SIGTERM, on_interrupt)
 
 
-def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True) -> bool:
+def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True,
+                  on_chunk: Optional[Callable[[bytes], None]] = None,
+                  text_mode: bool = True, ) -> bool:
     """
-    Run a subprocess and stream its stdout live to the logger.
-    Works for interactive CLI tools like mbsync or rclone.
+    Run a subprocess and stream its stdout live to the logger or a callback.
 
-    Returns True if exit 0, False otherwise.
+    If `text_mode` is True (default), stdout is read line-by-line as text
+    and streamed to the logger (interactive CLI style).
+
+    If `text_mode` is False, stdout is read in binary chunks and passed
+    to `on_chunk` (e.g. for hashing, compression, etc.).
+
+    Returns True if exit code 0, False otherwise.
     Raises CalledProcessError if ignore_errors=False and exit != 0.
     """
     # Use central logger rather than a passed-in logger object.
     logger = get_logger(__name__)
-    logger.info(f"Starting step: {label}")
+    silent_info(logger, f"Starting step: {label}", not text_mode)
     logger.debug(f"Command: {' '.join(cmd)}")
     start = time.time()
 
@@ -283,25 +298,58 @@ def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True) -> boo
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        universal_newlines=True,
+        text=text_mode,
+        bufsize=1 if text_mode else 0,
+        universal_newlines=text_mode,
     )
 
     try:
         assert process.stdout is not None
-        for line in process.stdout:
-            line = line.rstrip("\n")
-            if line:
-                logger.info(f"[{label}] {line}")
+        if text_mode:
+            # Read character-by-character to handle \r updates properly
+            buffer = ""
+            while True:
+                chunk = process.stdout.read(1)
+                if not chunk:
+                    break
+                buffer += chunk
+                # Handle full lines normally
+                if "\n" in buffer:
+                    lines = buffer.split("\n")
+                    for line in lines[:-1]:
+                        if line.strip():
+                            logger.info(f"[{label}] {line.strip()}")
+                    buffer = lines[-1]
+                # Handle carriage-return updates
+                elif "\r" in buffer:
+                    parts = buffer.split("\r")
+                    # Keep only the last fragment — updated progress line
+                    if len(parts) > 1:
+                        last = parts[-1].strip()
+                        if last:
+                            logger.info(f"[{label}] {last}")
+                        buffer = parts[-1]
+            # Flush remainder
+            if buffer.strip():
+                logger.info(f"[{label}] {buffer.strip()}")
+
+        else:
+            # Binary mode (used for hashing, etc.)
+            for chunk in iter(lambda: process.stdout.read(65536), b""):
+                if on_chunk:
+                    on_chunk(chunk)
     except Exception as e:
         logger.error(f"Streaming error for {label}: {e}")
     finally:
         rc = process.wait()
         elapsed = time.time() - start
 
+    if rc < 0:
+        logger.error(f"Interrupt for stream {label}")
+        raise KeyboardInterrupt()
+
     if rc == 0:
-        logger.info(f"Finished {label} in {elapsed:.1f}s")
+        silent_info(logger, f"Finished {label} in {elapsed:.1f}s", not text_mode)
         return True
     else:
         logger.error(f"{label} failed with exit code {rc} after {elapsed:.1f}s")
@@ -337,23 +385,23 @@ def compute_remote_sha256(settings: Settings, remote_path: str) -> str:
     """
     logger = get_logger(__name__)
     try:
+        # Normalize remote path
         if remote_path.startswith(settings.remote):
             remote_path = remote_path[len(settings.remote):]
         if remote_path.startswith("/"):
             remote_path = remote_path[1:]
-        proc = rclone_cat(f"{settings.remote}/{remote_path}", check=True)
-        proc.check_returncode()
-        out = proc.stdout
-        out_bytes = None
-        if isinstance(out, str):
-            try:
-                out_bytes = out.encode("utf-8")
-            except UnicodeEncodeError as e:
-                logger.debug(f"failed to encode output to utf-8: {e}")
-        if out_bytes is None:
-            # Fallback handling
-            out_bytes = (out or b"")
-        return sha256_bytes(out_bytes)
+
+        # Run rclone cat
+        h = hashlib.sha256()
+        ok = rclone_cat(f"{settings.remote}/{remote_path}", check=True, on_chunk=lambda chunk: h.update(chunk))
+
+        if not ok:
+            raise
+
+        return h.hexdigest()
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error(f"compute_remote_sha256 interrupted for {remote_path}")
+        raise
     except Exception as e:
         logger.debug(f"Failed to compute remote SHA256 for {remote_path}: {e}")
         return ""
@@ -430,10 +478,12 @@ def remote_hash(settings: Settings, file_pattern: str = '*', remote_path: str = 
         def compute_hash_for_path(rp):
             return compute_remote_sha256(settings, rp)
 
+        from mailbackup.executor import create_managed_executor
         with create_managed_executor(
-                max_workers=settings.max_hash_threads,
+                max_workers=min(settings.max_hash_threads, len(relpaths)),
                 name="RemoteHasher",
-                progress_interval=25
+                progress_interval=25,
+                silent=True,
         ) as executor:
             results = executor.map(compute_hash_for_path, relpaths)
 

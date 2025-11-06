@@ -55,9 +55,14 @@ class Settings:
     max_hash_threads: int
     max_upload_workers: int
     max_extract_workers: int
+    upload_batch_size: int
 
     # Logging
     status_interval: int
+    log_level: str
+    rotate_by_time: bool
+    max_log_files: int
+    max_log_size: int
 
     # Fetch
     fetch_command: str
@@ -185,6 +190,7 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
                         return data[top][sub]
         return default
 
+    # Paths
     maildir = Path(pick("maildir", "paths.maildir", default="/srv/mailbackup/maildir"))
     attachments_dir = Path(pick("attachments_dir", "paths.attachments_dir", default="/srv/mailbackup/attachments"))
     remote = str(pick("remote", "paths.remote", default="nextcloud:Backups/Email")).rstrip("/")
@@ -194,23 +200,36 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
     archive_dir = Path(pick("archive_dir", "paths.archive_dir", default="/srv/mailbackup/archives"))
     manifest_path = Path(pick("manifest_path", "paths.manifest_path", default="/srv/mailbackup/manifest.csv"))
 
-    retention_years = _coerce_int(pick("retention_years", "rotation.retention_years", default=2), 2)
+    # Archival
+    retention_years = _coerce_int(pick("retention_years", "archival.retention_years", default=2), 2)
     keep_local_after_archive = _coerce_bool(
-        pick("keep_local_after_archive", "rotation.keep_local_after_archive", default=False), False)
+        pick("keep_local_after_archive", "archival.keep_local_after_archive", default=False), False)
+
+    # Integrity
     verify_integrity = _coerce_bool(pick("verify_integrity", "integrity.verify_integrity", default=True), True)
     repair_on_failure = _coerce_bool(pick("repair_on_failure", "integrity.repair_on_failure", default=True), True)
+
+    # Manifest
     manifest_remote_name = str(pick("manifest_remote_name", "manifest.remote_name", default="manifest.csv"))
     max_manifest_conflict_retries = _coerce_int(
-        pick("max_manifest_conflict_retries", "manifest.max_manifest_conflict_retries", default=3), 3
+        pick("max_manifest_conflict_retries", "manifest.max_conflict_retries", default=3), 3
     )
-    max_hash_threads = _coerce_int(pick("max_hash_threads", "integrity.max_hash_threads", default=8), 8)
+
     # performance tuning (new)
     max_upload_workers = _coerce_int(pick("max_upload_workers", "performance.max_upload_workers", default=4), 4)
     max_extract_workers = _coerce_int(pick("max_extract_workers", "performance.max_extract_workers", default=1), 1)
-    status_interval = _coerce_int(pick("status_interval", "logging.status_interval", default=300), 300)
+    upload_batch_size = _coerce_int(pick("upload_batch_size", "performance.upload_batch_size", default=100), 100)
+    max_hash_threads = _coerce_int(pick("max_hash_threads", "performance.max_hash_workers", default=8), 8)
 
-    # fetch
-    fetch_command = str(pick("fetch_command", "fetch.command", default="mbsync -V -a"))
+    # logging
+    status_interval = _coerce_int(pick("status_interval", "logging.status_interval", default=300), 300)
+    log_level = str(pick("log_level", "logging.log_level", default="INFO"))
+    rotate_by_time = _coerce_bool(pick("rotate_by_time", "logging.rotate_by_time", default=True), True)
+    max_log_files = _coerce_int(pick("max_log_files", "logging.max_log_files", default=10), 10)
+    max_log_size = _coerce_int(pick("max_log_size", "logging.max_log_size", default=50 * 1024 * 1024), 50 * 1024 * 1024)
+
+    # fetching
+    fetch_command = str(pick("fetch_command", "fetching.command", default="mbsync -V -a"))
 
     # rclone
     rclone_log_level = str(pick("rclone_log_level", "rclone.log_level", default="INFO"))
@@ -223,6 +242,7 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
     set_rclone_defaults(rclone_log_level, rclone_transfers, rclone_multi_thread_streams)
 
     return Settings(
+        # Paths
         maildir=maildir,
         attachments_dir=attachments_dir,
         remote=remote,
@@ -231,17 +251,36 @@ def load_settings(config_path: Optional[Path] = None) -> Settings:
         tmp_dir=tmp_dir,
         archive_dir=archive_dir,
         manifest_path=manifest_path,
+
+        # Archival
         retention_years=retention_years,
         keep_local_after_archive=keep_local_after_archive,
+
+        # Integrity
         verify_integrity=verify_integrity,
         repair_on_failure=repair_on_failure,
+
+        # Manifest
         manifest_remote_name=manifest_remote_name,
         max_manifest_conflict_retries=max_manifest_conflict_retries,
+
+        # Performance
         max_hash_threads=max_hash_threads,
         max_upload_workers=max_upload_workers,
         max_extract_workers=max_extract_workers,
+        upload_batch_size=upload_batch_size,
+
+        # Logging
         status_interval=status_interval,
+        rotate_by_time=rotate_by_time,
+        max_log_files=max_log_files,
+        max_log_size=max_log_size,
+        log_level=log_level,
+
+        # Fetching
         fetch_command=fetch_command,
+
+        # rclone
         rclone_log_level=rclone_log_level,
         rclone_transfers=rclone_transfers,
         rclone_multi_thread_streams=rclone_multi_thread_streams,

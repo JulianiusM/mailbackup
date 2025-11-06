@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Callable, Iterable, TypeVar, Generic, Any, Optional
 
 from mailbackup.logger import get_logger
+from mailbackup.utils import silent_info
 
 T = TypeVar('T')
 R = TypeVar('R')
@@ -148,6 +149,7 @@ class ManagedThreadPoolExecutor:
             max_workers: int,
             name: str = "Worker",
             progress_interval: int = 25,
+            silent: bool = False,
     ):
         """
         Initialize managed thread pool executor.
@@ -162,6 +164,7 @@ class ManagedThreadPoolExecutor:
         self.name = name
         self.progress_interval = progress_interval
         self.interrupt_flag = InterruptFlag()
+        self.silent = silent
         self._executor: Optional[ThreadPoolExecutor] = None
         self._futures: list[Future] = []
         self._completed = 0
@@ -253,7 +256,7 @@ class ManagedThreadPoolExecutor:
         if total == 0:
             return results
 
-        self.logger.info(f"Starting {self.name} for {total} items with {self.max_workers} workers")
+        silent_info(self.logger, f"Starting {self.name} for {total} items with {self.max_workers} workers", self.silent)
 
         # Submit all tasks
         futures_map: dict[Future[R], T] = {}
@@ -265,15 +268,16 @@ class ManagedThreadPoolExecutor:
             future = self.submit(fn, item)
             futures_map[future] = item
 
+        self.logger.debug(f"Finished preprocessing for {total} items")
+
         # Collect results as they complete
         try:
             for future in as_completed(futures_map.keys()):
                 if self.interrupt_flag.is_set() or _global_interrupt_manager.is_interrupted():
                     self.logger.warning(f"{self.name} interrupted, stopping result collection")
-                    break
+                    raise KeyboardInterrupt()
 
                 item = futures_map[future]
-                task_res = None
                 try:
                     result = future.result()
                     task_res = TaskResult(
@@ -281,6 +285,8 @@ class ManagedThreadPoolExecutor:
                         result=result,
                         item=item
                     )
+                except KeyboardInterrupt:
+                    raise
                 except InterruptedError:
                     self.logger.warning(f"Task interrupted for item: {item}")
                     task_res = TaskResult(
@@ -307,13 +313,14 @@ class ManagedThreadPoolExecutor:
                 # Progress logging
                 if completed % self.progress_interval == 0 or completed == total:
                     remaining = total - completed
-                    self.logger.info(
-                        f"[{self.name} Progress] {completed}/{total} tasks completed "
-                        f"({remaining} remaining)"
-                    )
+                    silent_info(self.logger,
+                                f"[{self.name} Progress] {completed}/{total} tasks completed "
+                                f"({remaining} remaining)",
+                                self.silent
+                                )
 
-        except KeyboardInterrupt:
-            self.logger.warning(f"{self.name} received KeyboardInterrupt")
+        except (KeyboardInterrupt, InterruptedError):
+            self.logger.warning(f"{self.name} interrupted")
             self.interrupt_flag.set()
             raise
 
@@ -341,6 +348,7 @@ class ManagedThreadPoolExecutor:
         except Exception as e:
             self.logger.error(f"Error during executor shutdown: {e}")
         finally:
+            self.logger.debug(f"Finished executor {self.name} shutdown")
             self._executor = None
             self._futures.clear()
 
@@ -355,6 +363,7 @@ def create_managed_executor(
         max_workers: int,
         name: str = "Worker",
         progress_interval: int = 25,
+        silent: bool = False,
 ) -> ManagedThreadPoolExecutor:
     """
     Factory function to create a managed thread pool executor.
@@ -371,6 +380,7 @@ def create_managed_executor(
         max_workers=max_workers,
         name=name,
         progress_interval=progress_interval,
+        silent=silent,
     )
 
 

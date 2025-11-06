@@ -1,45 +1,52 @@
-# Example TOML configuration for mailbackup
-# Copy to: /etc/mailbackup.toml or ~/.config/mailbackup.toml
-
 [paths]
 maildir = "/srv/mailbackup/maildir"
 attachments_dir = "/srv/mailbackup/attachments"
 db_path = "/srv/mailbackup/state.db"
-log_path = "/var/log/mailbackup/sync.log"
+log_path = "/var/log/mailbackup/system.log"
 tmp_dir = "/srv/mailbackup/staging"
 archive_dir = "/srv/mailbackup/archives"
 manifest_path = "/srv/mailbackup/manifest.csv"
 # rclone remote name plus path, e.g. "nextcloud:Backups/Email"
 remote = "nextcloud:Backups/Email"
 
-[rotation]
+[archival]
 retention_years = 2
 keep_local_after_archive = false
 
 [integrity]
 verify_integrity = true
 repair_on_failure = true
-max_hash_threads = 8
 
 [manifest]
 remote_name = "manifest.csv"
-max_manifest_conflict_retries = 3
+max_conflict_retries = 3
 
 [logging]
 # how often the status line is printed (seconds)
 status_interval = 300
+# Whether to rotate daily at midnight instead of by file size
+rotate_by_time = true
+# The max log file size in bytes. Only effective if rotate_by_time is false
+max_log_size = 78_643_200
+log_level = "INFO"
+max_log_files = 10
 
 [performance]
 # number of parallel upload workers (I/O bound). Tune per backend.
-max_upload_workers = 4
+max_upload_workers = 8
+# number of simultaniously schedule emails for the upload workers to upload.
+upload_batch_size = 100
 # extractor parallelism (keep 1 if attachment dir layout isn't per-email unique)
-max_extract_workers = 1
+max_extract_workers = 4
+# number of parallel remote hashing workers.
+max_hash_workers = 8
 
-[fetch]
-# the fetch command to run to fetch new mail into maildir. Must exist on PATH.
+[fetching]
+# the fetch command to run to fetch new mail into maildir. Must exist on $PATH.
 command = "mbsync -V -a"
 
 [rclone]
+# see rclone manual for these three settings
 log_level = "INFO"
 transfers = 8
 multi_thread_streams = 4

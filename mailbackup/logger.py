@@ -5,14 +5,16 @@ logging.py — centralized logging for mailbackup
 
 import logging
 import sys
-from pathlib import Path
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from typing import Optional
+
+from mailbackup.config import Settings
 
 _LOGGER: Optional[logging.Logger] = None
 STATUS_LEVEL = 25
 
 
-def setup_logger(log_path: Path, level=logging.DEBUG) -> logging.Logger:
+def setup_logger(settings: Settings) -> logging.Logger:
     """Initialize global logger once."""
     global _LOGGER
     if _LOGGER is not None:
@@ -27,17 +29,29 @@ def setup_logger(log_path: Path, level=logging.DEBUG) -> logging.Logger:
     logging.Logger.status = status  # type: ignore[attr-defined]
 
     log = logging.getLogger("mailbackup")
-    log.setLevel(level)
+    log.setLevel(settings.log_level)
     log.propagate = False
 
     # Clear any default handlers
     for h in log.handlers[:]:
         log.removeHandler(h)
 
-    # File handler
-    file_handler = logging.FileHandler(log_path)
+    # --- Rotating File Handler ---
+    if settings.rotate_by_time:
+        # Rotate daily at midnight, keep 7 days by default
+        file_handler = TimedRotatingFileHandler(
+            settings.log_path, when="midnight", interval=1, backupCount=settings.max_log_files, encoding="utf-8"
+        )
+    else:
+        # Rotate when file exceeds max_bytes
+        file_handler = RotatingFileHandler(
+            settings.log_path, maxBytes=settings.max_log_size, backupCount=settings.max_log_files, encoding="utf-8"
+        )
+
     file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s")
+    file_formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s"
+    )
     file_handler.setFormatter(file_formatter)
     log.addHandler(file_handler)
 

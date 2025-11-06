@@ -14,6 +14,7 @@ Incremental upload of unsynced emails:
 from __future__ import annotations
 
 import shutil
+from itertools import islice
 from pathlib import Path
 from sqlite3 import Row
 
@@ -84,19 +85,20 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
 
     safe_write_json(docset_dir / "info.json", info)
 
-    remote_path = f"{year}/{folder_name}"
-    remote_base = f"{settings.remote}/{remote_path}"
+    remote_path = f"/{year}/{folder_name}"
+    remote_base = f"{settings.remote}{remote_path}"
 
     # upload email.eml (critical) with verification loop
     max_attempts = 3
     email_local = docset_dir / "email.eml"
     remote_email = f"{remote_base}/email.eml"
     email_uploaded = False
+    logger.debug(f"Attempting to upload email {email_local}")
     for attempt in range(1, max_attempts + 1):
         if email_local.exists():
             ok = atomic_upload_file(email_local, remote_email)
             if not ok:
-                logger.warning(f"Attempt {attempt}: atomic upload failed for email {hash_}")
+                logger.warning(f"Attempt {attempt}: atomic upload failed for email {email_local}")
                 continue
             # verification: stream remote file and compare SHA256 to local computed hash
             # this is a defensive step against partial/garbled uploads.
@@ -104,20 +106,23 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
             logger.debug(f"Remote map: {remote_map}")
             try:
                 if remote_map is None:
-                    logger.warning(f"No remote hashsum found for email {hash_}")
+                    logger.warning(f"No remote hashsum found for email {email_local}")
                 elif remote_map.get(f"{remote_path}/email.eml") != hash_email:
                     logger.warning(
-                        f"Verification mismatch for {hash_} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
+                        f"Verification mismatch for {email_local} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
                 else:
                     email_uploaded = True
                     break
             except KeyError as e:
-                logger.warning(f"Verfication failed for {hash_} with error: {e}")
+                logger.warning(f"Verfication failed for {hash_[:8]} at {remote_path}/email.eml with error")
 
             if not email_uploaded:
                 # try to remove the bad remote file
                 try:
                     rclone_deletefile(remote_email, check=False)
+                except (KeyboardInterrupt, InterruptedError):
+                    logger.error(f"Interrupted")
+                    raise
                 except Exception as e:
                     logger.debug(f"Error deleting bad {remote_email}: {e}")
         else:
@@ -140,6 +145,9 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
             ok = atomic_upload_file(fpath, f"{remote_base}/{fpath.name}")
             if not ok:
                 logger.warning(f"Failed to upload {fpath.name} for {hash_}")
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error(f"Interrupted")
+        raise
     except Exception as e:
         logger.exception(f"Exception during attachment upload for {hash_}: {e}")
         return False
@@ -149,6 +157,9 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
     db.mark_synced(settings.db_path, hash_, hash_email, f"{year}/{folder_name}/email.eml")
     try:
         manifest.queue_entry(f"{year}/{folder_name}/email.eml", hash_email)
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error(f"Interrupted")
+        raise
     except Exception as e:
         logger.warning(f"Failed to persist manifest queue: {e}")
 
@@ -185,14 +196,21 @@ def incremental_upload(settings: Settings, manifest: ManifestManager, stats: Thr
     if total_to_upload > 0:
         max_workers = max(1, int(settings.max_upload_workers))
         logger.info(f"Uploading with up to {max_workers} parallel workers...")
-
         with create_managed_executor(
                 max_workers=max_workers,
                 name="Uploader",
                 progress_interval=25
         ) as executor:
-            # Process all rows - stats are updated within _process_row
-            executor.map(_process_row, rows, create_increment_callback(stats))
+            it = iter(rows)
+            res = [list(islice(it, settings.upload_batch_size)) for _ in
+                   range((len(rows) + settings.upload_batch_size - 1) // settings.upload_batch_size)]
+            for _rows in res:
+                # Process all rows - stats are updated within _process_row
+                logger.debug(f"Processing {len(_rows)} rows...")
+                executor.map(_process_row, _rows, create_increment_callback(stats))
+                if executor.interrupt_flag.is_set():
+                    logger.error(f"Upload interrupted...")
+                    raise KeyboardInterrupt()
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()

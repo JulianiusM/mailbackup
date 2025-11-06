@@ -217,6 +217,9 @@ def integrity_check(settings: Settings, manifest: ManifestManager, stats: Thread
                         repair_remote(settings, "mismatch", row, manifest, stats)
 
             stats.increment(StatKey.VERIFIED)
+        except (KeyboardInterrupt, InterruptedError):
+            logger.error("Interrupted while verifying integrity.")
+            raise
         except Exception as e:
             logger.error(f"Failed to verify email {row['hash']}: {e}")
             stats.increment(StatKey.FAILED)

@@ -121,6 +121,9 @@ def archive_year(year: int, settings: Settings, manifest: ManifestManager, stats
             info_data["archive_name"] = f"emails_{year}.tar.zst"
             safe_write_json(info_path, info_data)
             updated_files += 1
+        except (KeyboardInterrupt, InterruptedError):
+            logger.error(f"Interrupted")
+            raise
         except Exception as e:
             logger.warning(f"Warning: could not update info.json {info_path}: {e}")
 
@@ -209,6 +212,9 @@ def rotate_archives(settings: Settings, manifest: ManifestManager, stats: Thread
         ) as executor:
             # Process all years - stats are updated within _process_year
             executor.map(_process_year, years, create_increment_callback(stats))
+            if executor.interrupt_flag.is_set():
+                logger.error(f"Archival interrupted...")
+                raise KeyboardInterrupt()
 
     # Upload manifest once
     manifest.upload_manifest_if_needed()

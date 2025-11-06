@@ -80,6 +80,9 @@ class ManifestManager:
             try:
                 write_json_atomic(self.manifest_queue_dump, self._manifest_queue)
                 self.logger.debug(f"Persisted manifest queue ({len(self._manifest_queue)} entries)")
+            except (KeyboardInterrupt, InterruptedError):
+                self.logger.error("Interrupted while persisting manifest queue")
+                raise
             except Exception as e:
                 self.logger.warning(f"Failed to persist manifest queue: {e}")
 
@@ -95,6 +98,9 @@ class ManifestManager:
             try:
                 write_json_atomic(self.manifest_queue_dump, self._manifest_queue)
                 self.logger.info(f"Manifest queue saved to {self.manifest_queue_dump}")
+            except (KeyboardInterrupt, InterruptedError):
+                self.logger.error("Interrupted while saving manifest queue")
+                raise
             except Exception as e:
                 self.logger.warning(f"Failed to persist manifest queue: {e}")
 
@@ -107,6 +113,7 @@ class ManifestManager:
         with self._lock:
             if not self.manifest_queue_dump.exists():
                 return
+            self.logger.info("Trying to restore manifest queue...")
             try:
                 with open(self.manifest_queue_dump, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -115,6 +122,9 @@ class ManifestManager:
                     self.logger.info(
                         f"Restored {len(self._manifest_queue)} manifest entries from {self.manifest_queue_dump}")
                 self.manifest_queue_dump.unlink(missing_ok=True)
+            except (KeyboardInterrupt, InterruptedError):
+                self.logger.error("Interrupted while restoring manifest queue")
+                raise
             except Exception as e:
                 self.logger.warning(f"Failed to restore manifest queue: {e}")
 
@@ -127,6 +137,9 @@ class ManifestManager:
         try:
             atomic_write_text(self.manifest_path, lines)
             self.logger.info(f"Manifest written atomically to {self.manifest_path}")
+        except (KeyboardInterrupt, InterruptedError):
+            self.logger.error("Interrupted while writing manifest")
+            raise
         except Exception as e:
             self.logger.error(f"Failed to write manifest atomically: {e}")
             try:
@@ -260,6 +273,9 @@ class ManifestManager:
             self._manifest_queue.clear()
             try:
                 self.manifest_queue_dump.unlink(missing_ok=True)
+            except (KeyboardInterrupt, InterruptedError):
+                self.logger.error("Interrupted while writing manifest")
+                raise
             except Exception:
                 pass
         # Upload snapshot outside lock

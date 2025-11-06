@@ -43,6 +43,9 @@ def decode_mime_header(raw_header) -> str:
         if not isinstance(decoded, str):
             decoded = str(decoded)
         return decoded
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error("Interrupted while decoding email header")
+        raise
     except Exception as e:
         logger.debug(f"Failed to decode MIME-encoded header: {e}")
         return str(raw_header)
@@ -60,8 +63,11 @@ def decode_text_part(part) -> str:
             return payload.decode(charset, errors="replace")
         except LookupError:
             return payload.decode("utf-8", errors="replace")
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error("Interrupted while decoding email")
+        raise
     except Exception as e:
-        logger.debug(f"Failed to decode MIME-encoded header: {e}")
+        logger.debug(f"Failed to decode MIME-encoded part: {e}")
         return ""
 
 
@@ -87,6 +93,9 @@ def save_attachment(part, outdir: Path) -> str | None:
         try:
             out.write_bytes(payload)
             return str(out)
+        except (KeyboardInterrupt, InterruptedError):
+            logger.error("Interrupted while writing attachment")
+            raise
         except Exception as e:
             logger.warning(f"Failed to save attachment {fn}: {e}")
     return None
@@ -122,6 +131,9 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path, stats: 
     logger = get_logger(__name__)
     try:
         raw = eml.read_bytes()
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error("Interrupted while reading email")
+        raise
     except Exception as e:
         logger.error(f"Failed to read {eml}: {e}")
         return False
@@ -134,6 +146,9 @@ def process_email_file(eml: Path, attachments_root: Path, db_path: Path, stats: 
 
     try:
         msg = email.message_from_bytes(raw)
+    except (KeyboardInterrupt, InterruptedError):
+        logger.error("Interrupted while parsing email.")
+        raise
     except Exception as e:
         logger.error(f"Failed to parse email {eml}: {e}")
         return False
@@ -251,7 +266,7 @@ def run_extractor(settings: Settings, stats: ThreadSafeStats):
         with create_managed_executor(
                 max_workers=settings.max_extract_workers,
                 name="Extractor",
-                progress_interval=250,
+                progress_interval=1000,
         ) as executor:
             results = executor.map(do_one, iter_mail_files(maildir), create_increment_callback(stats))
 

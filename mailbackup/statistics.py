@@ -15,7 +15,7 @@ import threading
 from enum import Enum
 from typing import Dict, Optional, Callable
 
-from mailbackup.executor import TaskResult
+from mailbackup.executor import TaskResult, get_global_interrupt_manager
 from mailbackup.logger import get_logger
 
 
@@ -155,7 +155,10 @@ class StatusThread:
             return
 
         def reporter():
+            int_mgr = get_global_interrupt_manager()
             while not self._stop_event.wait(self.interval):
+                if int_mgr.is_interrupted():
+                    self.stop()
                 # logger.status is registered at runtime by setup_logger; call via getattr
                 fn = getattr(self.logger, "status", None)
                 if callable(fn):
