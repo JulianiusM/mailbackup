@@ -177,6 +177,27 @@ class TestSetupLogger:
         finally:
             mailbackup.logger._LOGGER = old_logger
 
+    def test_setup_logger_size_based_rotation(self, tmp_path):
+        """Test that setup_logger creates size-based file handler."""
+        # Reset global logger to test fresh initialization
+        import mailbackup.logger
+        from logging.handlers import RotatingFileHandler
+        old_logger = mailbackup.logger._LOGGER
+        mailbackup.logger._LOGGER = None
+
+        try:
+            settings = create_test_settings(tmp_path)
+            settings.rotate_by_time = False  # Use size-based rotation
+            logger = setup_logger(settings)
+
+            # Check that we have a RotatingFileHandler
+            file_handlers = [h for h in logger.handlers if isinstance(h, RotatingFileHandler)]
+            assert len(file_handlers) == 1
+            assert file_handlers[0].maxBytes == settings.max_log_size
+            assert file_handlers[0].backupCount == settings.max_log_files
+        finally:
+            mailbackup.logger._LOGGER = old_logger
+
 
 class TestGetLogger:
     """Tests for get_logger function."""
