@@ -114,7 +114,7 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
                     email_uploaded = True
                     break
             except KeyError as e:
-                logger.warning(f"Verification failed for {hash_[:8]} at {remote_path}/email.eml: {e}")
+                logger.warning(f"Verification failed for {hash_[:8]} at {remote_path}/email.eml with KeyError")
 
             if not email_uploaded:
                 # try to remove the bad remote file
