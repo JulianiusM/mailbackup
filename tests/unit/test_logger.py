@@ -9,6 +9,39 @@ from mailbackup.logger import setup_logger, get_logger, STATUS_LEVEL
 from mailbackup.config import Settings
 
 
+def create_test_settings(tmp_path, log_level="INFO"):
+    """Helper function to create test Settings object."""
+    return Settings(
+        maildir=tmp_path / "maildir",
+        attachments_dir=tmp_path / "attachments",
+        remote="test:remote",
+        db_path=tmp_path / "test.db",
+        log_path=tmp_path / "test.log",
+        tmp_dir=tmp_path / "tmp",
+        archive_dir=tmp_path / "archives",
+        manifest_path=tmp_path / "manifest.csv",
+        retention_years=2,
+        keep_local_after_archive=False,
+        verify_integrity=True,
+        repair_on_failure=True,
+        manifest_remote_name="manifest.csv",
+        max_manifest_conflict_retries=3,
+        max_hash_threads=2,
+        max_upload_workers=2,
+        max_extract_workers=1,
+        upload_batch_size=100,
+        status_interval=10,
+        log_level=log_level,
+        rotate_by_time=True,
+        max_log_files=10,
+        max_log_size=50 * 1024 * 1024,
+        fetch_command="",
+        rclone_log_level="INFO",
+        rclone_transfers=4,
+        rclone_multi_thread_streams=2,
+    )
+
+
 class TestSetupLogger:
     """Tests for setup_logger function."""
 
@@ -20,35 +53,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             assert logger is not None
@@ -66,35 +71,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="CRITICAL",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path, log_level="CRITICAL")
             logger = setup_logger(settings)
 
             assert logger.level == logging.CRITICAL
@@ -109,35 +86,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             assert logging.getLevelName(STATUS_LEVEL) == "STATUS"
@@ -153,35 +102,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger1 = setup_logger(settings)
             logger2 = setup_logger(settings)
 
@@ -197,35 +118,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
@@ -242,35 +135,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             console_handlers = [h for h in logger.handlers if
@@ -288,35 +153,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             assert logger.propagate is False
@@ -331,35 +168,7 @@ class TestSetupLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             logger = setup_logger(settings)
 
             assert hasattr(logging.Logger, 'status')
@@ -380,35 +189,7 @@ class TestGetLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             setup_logger(settings)
             logger = get_logger("test_module")
 
@@ -424,35 +205,7 @@ class TestGetLogger:
         mailbackup.logger._LOGGER = None
 
         try:
-            settings = Settings(
-                maildir=tmp_path / "maildir",
-                attachments_dir=tmp_path / "attachments",
-                remote="test:remote",
-                db_path=tmp_path / "test.db",
-                log_path=tmp_path / "test.log",
-                tmp_dir=tmp_path / "tmp",
-                archive_dir=tmp_path / "archives",
-                manifest_path=tmp_path / "manifest.csv",
-                retention_years=2,
-                keep_local_after_archive=False,
-                verify_integrity=True,
-                repair_on_failure=True,
-                manifest_remote_name="manifest.csv",
-                max_manifest_conflict_retries=3,
-                max_hash_threads=2,
-                max_upload_workers=2,
-                max_extract_workers=1,
-                upload_batch_size=100,
-                status_interval=10,
-                log_level="INFO",
-                rotate_by_time=True,
-                max_log_files=10,
-                max_log_size=50 * 1024 * 1024,
-                fetch_command="",
-                rclone_log_level="INFO",
-                rclone_transfers=4,
-                rclone_multi_thread_streams=2,
-            )
+            settings = create_test_settings(tmp_path)
             setup_logger(settings)
             logger = get_logger()
 

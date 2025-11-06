@@ -3,6 +3,7 @@
 Integration test for interrupt handling.
 """
 
+import pytest
 import threading
 import time
 
@@ -36,7 +37,6 @@ class TestInterruptHandlingIntegration:
 
     def test_global_interrupt_stops_all_executors(self):
         """Test that global interrupt stops all executors."""
-        import pytest
         manager = get_global_interrupt_manager()
         manager.reset()
 
@@ -68,7 +68,6 @@ class TestInterruptHandlingIntegration:
 
     def test_interrupt_preserves_completed_results(self):
         """Test that interrupt raises KeyboardInterrupt."""
-        import pytest
         manager = get_global_interrupt_manager()
         manager.reset()
 
@@ -101,7 +100,6 @@ class TestInterruptHandlingIntegration:
 
     def test_multiple_executors_coordinate_shutdown(self):
         """Test that multiple executors shutdown together."""
-        import pytest
         manager = get_global_interrupt_manager()
         manager.reset()
 
@@ -144,7 +142,6 @@ class TestInterruptHandlingIntegration:
 
     def test_recovery_after_interrupt(self):
         """Test that we can recover and run new tasks after interrupt."""
-        import pytest
         manager = get_global_interrupt_manager()
         manager.reset()
 
