@@ -92,6 +92,7 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
     max_attempts = 3
     email_local = docset_dir / "email.eml"
     remote_email = f"{remote_base}/email.eml"
+    email_key = f"{remote_path}/email.eml"
     email_uploaded = False
     logger.debug(f"Attempting to upload email {email_local}")
     for attempt in range(1, max_attempts + 1):
@@ -107,14 +108,14 @@ def upload_email(row: Row, settings: Settings, manifest: ManifestManager, stats:
             try:
                 if remote_map is None:
                     logger.warning(f"No remote hashsum found for email {email_local}")
-                elif remote_map.get(f"{remote_path}/email.eml") != hash_email:
+                elif remote_map.get(email_key) != hash_email:
                     logger.warning(
-                        f"Verification mismatch for {email_local} remote_sha={remote_map[remote_email][:8]} expected={hash_email[:8]}")
+                        f"Verification mismatch for {email_local} remote_sha={remote_map[email_key][:8]} expected={hash_email[:8]}")
                 else:
                     email_uploaded = True
                     break
             except KeyError as e:
-                logger.warning(f"Verfication failed for {hash_[:8]} at {remote_path}/email.eml with error")
+                logger.warning(f"Verification failed for {hash_[:8]} at {remote_path}/email.eml with KeyError")
 
             if not email_uploaded:
                 # try to remove the bad remote file

@@ -213,3 +213,26 @@ class TestRcloneCheckFalse:
         mock_run.assert_called_once()
         kwargs = mock_run.call_args[1]
         assert kwargs.get("check") is False
+
+
+class TestRcloneStreaming:
+    """Tests for rclone commands with streaming callback."""
+
+    def test_rclone_cat_with_callback(self, mocker):
+        """Test rclone_cat with on_chunk callback uses streaming."""
+        mock_streaming = mocker.patch("mailbackup.utils.run_streaming")
+        mock_streaming.return_value = mocker.Mock(returncode=0, stdout="data", stderr="")
+
+        chunks = []
+        def callback(chunk):
+            chunks.append(chunk)
+
+        rclone_cat("remote:/file.txt", on_chunk=callback)
+
+        # Verify run_streaming was called instead of run_cmd
+        mock_streaming.assert_called_once()
+        args = mock_streaming.call_args[0]
+        assert args[0] == "RCLONE"
+        kwargs = mock_streaming.call_args[1]
+        assert kwargs.get("on_chunk") is callback
+        assert kwargs.get("text_mode") is False

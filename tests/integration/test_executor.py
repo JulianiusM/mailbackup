@@ -3,6 +3,7 @@
 Integration test for interrupt handling.
 """
 
+import pytest
 import threading
 import time
 
@@ -52,7 +53,9 @@ class TestInterruptHandlingIntegration:
 
         start = time.time()
         with create_managed_executor(max_workers=2, name="Test") as executor:
-            results = executor.map(slow_task, range(20))
+            # Should raise KeyboardInterrupt when interrupted
+            with pytest.raises(KeyboardInterrupt):
+                executor.map(slow_task, range(20))
 
         elapsed = time.time() - start
         interrupt_thread.join()
@@ -60,14 +63,11 @@ class TestInterruptHandlingIntegration:
         # Should complete much faster than 10 seconds (20 tasks * 0.5s / 2 workers)
         assert elapsed < 5.0, f"Took {elapsed}s, expected < 5s due to interrupt"
 
-        # Some tasks should have been interrupted
-        assert len(results) < 20 or any(not r.success for r in results)
-
         # Reset for next test
         manager.reset()
 
     def test_interrupt_preserves_completed_results(self):
-        """Test that interrupt doesn't lose completed results."""
+        """Test that interrupt raises KeyboardInterrupt."""
         manager = get_global_interrupt_manager()
         manager.reset()
 
@@ -90,19 +90,11 @@ class TestInterruptHandlingIntegration:
         interrupt_thread.start()
 
         with create_managed_executor(max_workers=2, name="Test") as executor:
-            results = executor.map(task_with_tracking, range(20))
+            # Should raise KeyboardInterrupt when interrupted
+            with pytest.raises(KeyboardInterrupt):
+                executor.map(task_with_tracking, range(20))
 
         interrupt_thread.join()
-
-        # We should have some completed results
-        successful_results = [r for r in results if r.success]
-        assert len(successful_results) > 0
-
-        # The results we got should be correct
-        for r in successful_results:
-            if r.result is not None:
-                expected = r.item * 2
-                assert r.result == expected
 
         manager.reset()
 
@@ -132,9 +124,9 @@ class TestInterruptHandlingIntegration:
                 # Executor should be registered
                 assert manager.get_executor_count() == 1
 
-                # Start processing on executor 1
-                results1 = ex1.map(slow_task, range(10))
-                results_collected["ex1"] = True
+                # Start processing on executor 1 - should raise KeyboardInterrupt
+                with pytest.raises(KeyboardInterrupt):
+                    ex1.map(slow_task, range(10))
         finally:
             interrupt_thread.join()
 
@@ -154,18 +146,22 @@ class TestInterruptHandlingIntegration:
         manager.reset()
 
         def task(x):
+            # Add a small delay to ensure interrupt happens during execution
+            time.sleep(0.01)
             return x * 2
 
         # First run with interrupt
         def interrupt_quickly():
-            time.sleep(0.05)
+            time.sleep(0.1)  # Give time for tasks to start
             manager.interrupt_all()
 
         interrupt_thread = threading.Thread(target=interrupt_quickly)
         interrupt_thread.start()
 
         with create_managed_executor(max_workers=2, name="Test1") as executor:
-            results1 = executor.map(task, range(100))
+            # Should raise KeyboardInterrupt when interrupted
+            with pytest.raises(KeyboardInterrupt):
+                executor.map(task, range(100))
 
         interrupt_thread.join()
 

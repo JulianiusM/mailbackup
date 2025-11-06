@@ -362,7 +362,7 @@ def run_streaming(label: str, cmd: list[str], ignore_errors: bool = True,
 def atomic_upload_file(local_path: Path, remote_final: str) -> bool:
     _logger = get_logger(__name__)
     run_id = uuid.uuid4().hex
-    remote_tmp = f"{remote_final}.tmp.{run_id}"
+    remote_tmp = f"{remote_final}.tmp.{run_id[:10]}"
     res = rclone_copyto(local_path, remote_tmp, check=False)
     if getattr(res, "returncode", 1) != 0:
         _logger.error(f"atomic_upload_file: copyto failed for {local_path} -> {remote_tmp}")
