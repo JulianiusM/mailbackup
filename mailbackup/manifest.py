@@ -61,7 +61,7 @@ class ManifestManager:
         self.manifest_queue_dump = self.tmp_dir / "manifest.queue.json"
 
         self._manifest_queue: Dict[str, str] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
 

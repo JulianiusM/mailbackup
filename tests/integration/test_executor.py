@@ -3,9 +3,10 @@
 Integration test for interrupt handling.
 """
 
-import pytest
 import threading
 import time
+
+import pytest
 
 from mailbackup.executor import (
     create_managed_executor,
@@ -45,7 +46,7 @@ class TestInterruptHandlingIntegration:
             return x * 2
 
         def interrupt_after_delay():
-            time.sleep(0.1)
+            time.sleep(0.2)
             manager.interrupt_all()
 
         interrupt_thread = threading.Thread(target=interrupt_after_delay)
@@ -72,7 +73,7 @@ class TestInterruptHandlingIntegration:
         manager.reset()
 
         completed_count = [0]
-        lock = threading.Lock()
+        lock = threading.RLock()
 
         def task_with_tracking(x):
             result = x * 2

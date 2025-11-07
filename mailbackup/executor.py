@@ -37,7 +37,7 @@ class InterruptFlag:
 
     def __init__(self):
         self._interrupted = threading.Event()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def set(self):
         """Signal that an interrupt has occurred."""
@@ -63,7 +63,7 @@ class GlobalInterruptManager:
     """
 
     _instance: Optional[GlobalInterruptManager] = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
@@ -82,7 +82,7 @@ class GlobalInterruptManager:
         self._initialized = True
         self._global_flag = InterruptFlag()
         self._executors: list[ManagedThreadPoolExecutor] = []
-        self._executors_lock = threading.Lock()
+        self._executors_lock = threading.RLock()
         self.logger = get_logger(__name__)
 
     def register_executor(self, executor: ManagedThreadPoolExecutor):
@@ -169,7 +169,7 @@ class ManagedThreadPoolExecutor:
         self._futures: list[Future] = []
         self._completed = 0
         self._total = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._registered = False
 
     def __enter__(self):

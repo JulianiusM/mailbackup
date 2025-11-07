@@ -43,7 +43,7 @@ class ThreadSafeStats:
     def __init__(self):
         """Initialize with empty counters and a lock."""
         self._counters: Dict[StatKey, int] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def increment(self, key: StatKey, value: int = 1) -> None:
         """
