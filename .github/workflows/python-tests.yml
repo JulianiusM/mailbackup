@@ -33,7 +33,7 @@ jobs:
 
       - name: Run all tests with coverage
         run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing --cov-report=html
+          pytest tests/ -v --cov=. --cov-branch --cov-report=xml --cov-report=term-missing --cov-report=html --junitxml=junit.xml -o junit_family=legacy
 
       - name: Check coverage threshold
         run: |
@@ -46,6 +46,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && matrix.python-version == '3.11'}}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
