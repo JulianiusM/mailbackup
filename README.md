@@ -4,19 +4,19 @@ mailbackup is a Python-based tool for incremental backup of maildir-format email
 
 ## Features
 
-- Incremental extraction of attachments and message bodies from .eml files
+- Incremental extraction of attachments and message bodies from email files
 - Upload to remote storage using rclone
 - Archive rotation and integrity checking
 - SQLite-based state management
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.10+
 - rclone (installed separately; not a Python package)
 
 ## Installation (development)
 
-Open a Windows Command Prompt and run:
+Open a Command Prompt and run:
 
 ```cmd
 python -m venv .venv
